@@ -1,3 +1,5 @@
+from routes.location import location_bp
+from routes.sms import sms_bp
 from routes.torch import torch_bp
 from routes.tts import tts_bp
 from routes.notification import notification_bp
@@ -12,6 +14,8 @@ from routes.device import device_bp
 
 app = Flask(__name__)
 
+app.register_blueprint(location_bp)
+app.register_blueprint(sms_bp)
 app.register_blueprint(battery_bp)
 app.register_blueprint(torch_bp)
 app.register_blueprint(tts_bp)
