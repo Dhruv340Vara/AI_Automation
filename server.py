@@ -1,3 +1,5 @@
+from routes.contacts import contacts_bp
+from routes.camera import camera_bp
 from routes.location import location_bp
 from routes.sms import sms_bp
 from routes.torch import torch_bp
@@ -17,6 +19,8 @@ app = Flask(__name__)
 app.register_blueprint(location_bp)
 app.register_blueprint(sms_bp)
 app.register_blueprint(battery_bp)
+app.register_blueprint(contacts_bp)
+app.register_blueprint(camera_bp)
 app.register_blueprint(torch_bp)
 app.register_blueprint(tts_bp)
 app.register_blueprint(notification_bp)
