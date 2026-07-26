@@ -1,3 +1,4 @@
+from routes.vibrate import vibrate_bp
 from routes.volume import volume_bp
 from routes.clipboard import clipboard_bp
 from flask import Flask, jsonify
@@ -11,6 +12,7 @@ app = Flask(__name__)
 app.register_blueprint(battery_bp)
 app.register_blueprint(device_bp)
 app.register_blueprint(volume_bp)
+app.register_blueprint(vibrate_bp)
 app.register_blueprint(wifi_bp)
 app.register_blueprint(clipboard_bp)
 app.register_blueprint(storage_bp)
