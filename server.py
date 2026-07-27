@@ -1,3 +1,6 @@
+from routes.upload import upload_bp
+from routes.download import download_bp
+from routes.preview import preview_bp
 from routes.contacts import contacts_bp
 from routes.camera import camera_bp
 from routes.location import location_bp
@@ -19,6 +22,9 @@ app = Flask(__name__)
 app.register_blueprint(location_bp)
 app.register_blueprint(sms_bp)
 app.register_blueprint(battery_bp)
+app.register_blueprint(upload_bp)
+app.register_blueprint(download_bp)
+app.register_blueprint(preview_bp)
 app.register_blueprint(contacts_bp)
 app.register_blueprint(camera_bp)
 app.register_blueprint(torch_bp)
