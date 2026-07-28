@@ -1,19 +1,18 @@
 import subprocess
 
-
 def torch_on():
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["termux-torch", "on"],
             capture_output=True,
             text=True
         )
 
         return {
-            "status": "success",
-            "torch": "on"
+            "returncode": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr
         }
-
     except Exception as e:
         return {
             "error": str(e)
