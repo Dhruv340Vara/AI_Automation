@@ -1,3 +1,11 @@
+from routes.delete_request import delete_request_bp
+from services.storage_manager import initialize_storage
+from routes.recycle import recycle_bp
+from routes.restore import restore_bp
+from routes.permanent_delete import delete_bp
+from routes.zip import zip_bp
+from routes.unzip import unzip_bp
+from routes.permissions import permissions_bp
 from routes.upload import upload_bp
 from routes.download import download_bp
 from routes.preview import preview_bp
@@ -19,11 +27,19 @@ from routes.device import device_bp
 
 app = Flask(__name__)
 
+initialize_storage()
 app.register_blueprint(location_bp)
 app.register_blueprint(sms_bp)
 app.register_blueprint(battery_bp)
+app.register_blueprint(recycle_bp)
+app.register_blueprint(restore_bp)
+app.register_blueprint(delete_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(download_bp)
+app.register_blueprint(delete_request_bp)
+app.register_blueprint(zip_bp)
+app.register_blueprint(unzip_bp)
+app.register_blueprint(permissions_bp)
 app.register_blueprint(preview_bp)
 app.register_blueprint(contacts_bp)
 app.register_blueprint(camera_bp)

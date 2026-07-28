@@ -1,4 +1,5 @@
 import os
+import json
 
 ROOT_DIR="/storage/emulated/0/AI_Automation"
 
@@ -46,6 +47,16 @@ def get_download_path():
 
 def get_photo_path():
     return PHOTOS_DIR
+
+def get_recycle_files_path():
+    path=os.path.join(RECYCLE_BIN_DIR,"files")
+    os.makedirs(path,exist_ok=True)
+    return path
+
+def get_recycle_metadata_path():
+    path=os.path.join(RECYCLE_BIN_DIR,"metadata")
+    os.makedirs(path,exist_ok=True)
+    return path
 
 def get_backup_path():
     return BACKUPS_DIR
