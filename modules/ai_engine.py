@@ -22,10 +22,13 @@ class AIEngine:
                 return self._error_response("Invalid parser response.")
 
             if result.get("success"):
-                action=self.executor.execute(result["intent"])
+                action = self.executor.execute(
+                    result["intent"],
+                    result.get("data", {})
+                )
 
-                if isinstance(action,dict):
-                    result["data"]=action.get("data",action)
+            if isinstance(action,dict):
+                result["data"]=action.get("data",action)
 
             return{
                 "success":result.get("success",False),

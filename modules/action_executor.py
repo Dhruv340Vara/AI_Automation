@@ -1,10 +1,15 @@
+from modules.apps import AppManager
 import requests
 
 class ActionExecutor:
     def __init__(self,base_url="http://127.0.0.1:5000"):
         self.base_url=base_url
+        self.apps = AppManager()
 
-    def execute(self,intent):
+    def execute(self, intent, data=None):
+        if data is None:
+            data = {}
+
         if intent=="OPEN_CAMERA":
             return self._open_camera()
 
@@ -19,6 +24,11 @@ class ActionExecutor:
 
         if intent=="TORCH_OFF":
             return self._torch("off")
+
+        if intent == "OPEN_APP":
+            return self.apps.open_app(
+                data.get("app")
+            )
 
         return{
             "success":False,
