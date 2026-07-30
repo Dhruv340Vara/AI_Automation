@@ -1,7 +1,82 @@
 {
-    "profile": {},
-    "preferences": {},
-    "conversation": [],
-    "tasks": [],
-    "history": []
+    "profile": {
+        "name": "Dhruv",
+        "city": "Rajkot"
+    },
+    "preferences": {
+        "theme": "dark"
+    },
+    "conversation": [
+        {
+            "time": "2026-07-30T07:53:09.433181",
+            "role": "assistant",
+            "message": "Hello Dhruv"
+        },
+        {
+            "time": "2026-07-30T07:53:09.437935",
+            "role": "user",
+            "message": "What is my name?"
+        },
+        {
+            "time": "2026-07-30T07:53:09.443185",
+            "role": "user",
+            "message": "What is my city?"
+        },
+        {
+            "time": "2026-07-30T07:53:09.448929",
+            "role": "user",
+            "message": "Use dark theme"
+        },
+        {
+            "time": "2026-07-30T07:53:09.455095",
+            "role": "user",
+            "message": "Show my tasks"
+        },
+        {
+            "time": "2026-07-30T07:53:09.463390",
+            "role": "user",
+            "message": "મારું નામ શું છે?"
+        },
+        {
+            "time": "2026-07-30T07:53:09.469367",
+            "role": "user",
+            "message": "Today's weather"
+        }
+    ],
+    "tasks": [
+        {
+            "title": "Complete Phase 4.4",
+            "status": "pending"
+        }
+    ],
+    "history": [
+        {
+            "time": "2026-07-30T07:53:09.430385",
+            "action": "System Started"
+        },
+        {
+            "time": "2026-07-30T07:53:09.439389",
+            "action": "Context generated for: What is my name?"
+        },
+        {
+            "time": "2026-07-30T07:53:09.444779",
+            "action": "Context generated for: What is my city?"
+        },
+        {
+            "time": "2026-07-30T07:53:09.450999",
+            "action": "Context generated for: Use dark theme"
+        },
+        {
+            "time": "2026-07-30T07:53:09.457099",
+            "action": "Context generated for: Show my tasks"
+        },
+        {
+            "time": "2026-07-30T07:53:09.465534",
+            "action": "Context generated for: મારું નામ શું છે?"
+        },
+        {
+            "time": "2026-07-30T07:53:09.471518",
+            "action": "Context generated for: Today's weather"
+        }
+    ]
 }
