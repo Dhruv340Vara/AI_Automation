@@ -2,9 +2,11 @@ from __future__ import annotations
 import threading
 import time
 from typing import Dict
+from datetime import timedelta
 from automation.scheduler.scheduled_task import (
     ScheduledTask,
     ScheduleStatus,
+    ScheduleType,
 )
 from automation.scheduler.scheduler_types import (
     ExecutionResult,
@@ -141,6 +143,7 @@ class Scheduler:
         try:
             if self._task_handler is None:
                 task.mark_completed()
+                self._reschedule_task(task)
                 return
             result = self._task_handler(
                 task
@@ -149,6 +152,7 @@ class Scheduler:
                 result = ExecutionResult.SUCCESS
             if result == ExecutionResult.SUCCESS:
                 task.mark_completed()
+                self._reschedule_task(task)
             elif result == ExecutionResult.CANCEL:
                 task.cancel()
             elif result == ExecutionResult.RETRY:
@@ -161,4 +165,18 @@ class Scheduler:
             task.cancel()
 
     def set_task_handler(self, handler):
-         self._task_handler = handler
+        self._task_handler = handler
+
+    def _reschedule_task(self,task: ScheduledTask):
+        if task.schedule_type == ScheduleType.ONCE:
+            return False
+        if task.schedule_type == ScheduleType.INTERVAL:
+            task.next_run = (task.last_run +timedelta(seconds=task.interval))
+        elif task.schedule_type == ScheduleType.DAILY:
+            task.next_run = (task.last_run +timedelta(days=1))
+        elif task.schedule_type == ScheduleType.WEEKLY:
+            task.next_run = (task.last_run +timedelta(days=7))
+        elif task.schedule_type == ScheduleType.MONTHLY:
+            task.next_run = (task.last_run +timedelta(days=30))
+        task.resume()
+        return True
