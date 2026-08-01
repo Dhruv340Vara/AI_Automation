@@ -2,7 +2,8 @@ from __future__ import annotations
 import threading
 import time
 from typing import Dict
-from datetime import timedelta
+import calendar
+from datetime import datetime, timedelta
 from automation.scheduler.scheduled_task import (
     ScheduledTask,
     ScheduleStatus,
@@ -167,6 +168,23 @@ class Scheduler:
     def set_task_handler(self, handler):
         self._task_handler = handler
 
+    def _next_monthly_run(self,task: ScheduledTask):
+        current = task.last_run
+        year = current.year
+        month = current.month + 1
+        if month > 12:
+            month = 1
+            year += 1
+        max_day = calendar.monthrange(
+            year,
+            month
+        )[1]
+        day = min(
+            task.day,
+            max_day
+        )
+        return datetime(year,month,day,current.hour,current.minute,current.second,current.microsecond)
+
     def _reschedule_task(self,task: ScheduledTask):
         if task.schedule_type == ScheduleType.ONCE:
             return False
@@ -177,6 +195,6 @@ class Scheduler:
         elif task.schedule_type == ScheduleType.WEEKLY:
             task.next_run = (task.last_run +timedelta(days=7))
         elif task.schedule_type == ScheduleType.MONTHLY:
-            task.next_run = (task.last_run +timedelta(days=30))
+            task.next_run = (self._next_monthly_run(task))
         task.resume()
         return True
