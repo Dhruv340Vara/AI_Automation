@@ -1,9 +1,9 @@
 from __future__ import annotations
 import threading
-import time
 from typing import Dict
 import calendar
 from datetime import datetime, timedelta
+from automation.scheduler.timer import Timer
 from automation.scheduler.scheduled_task import (
     ScheduledTask,
     ScheduleStatus,
@@ -19,102 +19,141 @@ class Scheduler:
         self._running = False
         self._thread = None
         self._task_handler = None
+        self._timer = Timer()
+        self._lock = threading.RLock()
         self._poll_interval = 1.0
 
     def add_task(self, task: ScheduledTask):
-        if task.task_id in self._tasks:
-            raise ValueError(
-                "Task already exists."
-            )
-        self._tasks[task.task_id] = task
+        with self._lock:
+            if task.task_id in self._tasks:
+                raise ValueError("Task already exists.")
+            self._tasks[task.task_id] = task
         return task
 
+    def _locked(self):
+        return self._lock
+
     def remove_task(self, task_id: str):
-        return self._tasks.pop(task_id, None)
+        with self._lock:
+            return self._tasks.pop(task_id, None)
 
     def get_task(self, task_id: str):
-        return self._tasks.get(task_id)
+        with self._lock:
+            return self._tasks.get(task_id)
 
     def exists(self, task_id: str):
-        return task_id in self._tasks
+        with self._lock:
+            return task_id in self._tasks
 
     def all_tasks(self):
-        return list(self._tasks.values())
+        with self._lock:
+            return list(self._tasks.values())
 
     def pending_tasks(self):
-        return [
-            task
-            for task in self._tasks.values()
-            if task.status == ScheduleStatus.PENDING
-        ]
+        with self._lock:
+            return [
+                task
+                for task in self._tasks.values()
+                if task.status == ScheduleStatus.PENDING
+            ]
 
     def paused_tasks(self):
-        return [
-            task
-            for task in self._tasks.values()
-            if task.status == ScheduleStatus.PAUSED
-        ]
+        with self._lock:
+            return [
+                task
+                for task in self._tasks.values()
+                if task.status == ScheduleStatus.PAUSED
+            ]
 
     def running_tasks(self):
-        return [
-            task
-            for task in self._tasks.values()
-            if task.status == ScheduleStatus.RUNNING
-        ]
+        with self._lock:
+            return [
+                task
+                for task in self._tasks.values()
+                if task.status == ScheduleStatus.RUNNING
+            ]
 
     def completed_tasks(self):
-        return [
-            task
-            for task in self._tasks.values()
-            if task.status == ScheduleStatus.COMPLETED
-        ]
+        with self._lock:
+            return [
+                task
+                for task in self._tasks.values()
+                if task.status == ScheduleStatus.COMPLETED
+            ]
 
     def cancelled_tasks(self):
-        return [
-            task
-            for task in self._tasks.values()
-            if task.status == ScheduleStatus.CANCELLED
-        ]
+        with self._lock:
+            return [
+                task
+                for task in self._tasks.values()
+                if task.status == ScheduleStatus.CANCELLED
+            ]
 
     def count(self):
-        return len(self._tasks)
+        with self._lock:
+            return len(self._tasks)
 
     def clear(self):
-        self._tasks.clear()
+        with self._lock:
+            self._tasks.clear()
+
+    def cleanup(self):
+        with self._lock:
+            remove = []
+            for task in self._tasks.values():
+                if task.status in (
+                    ScheduleStatus.COMPLETED,
+                    ScheduleStatus.CANCELLED,
+                    ScheduleStatus.FAILED,
+                ):
+                    if task.schedule_type == ScheduleType.ONCE:
+                        remove.append(task.task_id)
+            for task_id in remove:
+                del self._tasks[task_id]
+            return len(remove)
 
     def __len__(self):
-        return len(self._tasks)
+        with self._lock:
+            return len(self._tasks)
 
     def __iter__(self):
-        return iter(self._tasks.values())
+        with self._lock:
+            return iter(list(self._tasks.values()))
 
     def __repr__(self):
-        return f"<Scheduler tasks={len(self._tasks)}>"
+        with self._lock:
+            return f"<Scheduler tasks={len(self._tasks)}>"
 
     @property
     def is_running(self):
         return self._running
 
     def start(self):
-        if self._running:
-            return False
-        self._running = True
-        self._thread = threading.Thread(
-            target=self._run_loop,
-            daemon=True,
-        )
-        self._thread.start()
-        return True
+        with self._lock:
+            self._timer.reset()
+            if self._running:
+                return False
+            self._running = True
+            self._thread = threading.Thread(
+                target=self._run_loop,
+                daemon=True,
+            )
+            self._thread.start()
+            return True
 
     def _run_loop(self):
         while self._running:
             self._execute_due_tasks()
-            time.sleep(self._poll_interval)
-
+            self.cleanup()
+            if not self._timer.wait(self._poll_interval):
+                break
+            
     def stop(self):
-        if not self._running:
-            return False
-        self._running = False
+        with self._lock:
+            if not self._running:
+                return False
+            self._running = False
+            self._timer.stop()
         if self._thread is not None:
             self._thread.join(timeout=2)
             self._thread = None
@@ -128,11 +167,12 @@ class Scheduler:
         self._poll_interval = seconds
 
     def find_due_tasks(self):
-        due = []
-        for task in self.pending_tasks():
-            if task.should_run():
-                due.append(task)
-        return due
+        with self._lock:
+            due = []
+            for task in self.pending_tasks():
+                if task.should_run():
+                    due.append(task)
+            return due
 
     def _execute_due_tasks(self):
         due_tasks = self.find_due_tasks()

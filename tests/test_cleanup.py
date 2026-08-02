@@ -4,19 +4,20 @@ from automation.scheduler.scheduled_task import (
     ScheduledTask,
     ScheduleType,
 )
+
 def run():
     scheduler = Scheduler()
-    def handler(task):
-        print("Executing:", task.automation_id)
-    scheduler.set_task_handler(handler)
     task = ScheduledTask(
         automation_id="AUTO001",
         schedule_type=ScheduleType.ONCE,
         next_run=datetime.now(),
     )
+    task.mark_completed()
     scheduler.add_task(task)
-    scheduler._execute_due_tasks()
-    print(task.status)
+    print(scheduler.count())
+    removed = scheduler.cleanup()
+    print(removed)
+    print(scheduler.count())
 
 if __name__ == "__main__":
     run()
