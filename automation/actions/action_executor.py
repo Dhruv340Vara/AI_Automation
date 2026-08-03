@@ -1,10 +1,15 @@
 from __future__ import annotations
+from automation.security.command_validator import (
+    CommandValidator
+)
 from typing import Any
 import subprocess
 from automation.automation_types import Automation
 
 
 class ActionExecutor:
+    def __init__(self):
+        self.validator = CommandValidator()
 
     def execute(
         self,
@@ -32,7 +37,9 @@ class ActionExecutor:
         self,
         action: dict[str, Any]
     ) -> bool:
-
+        self.validator.validate(
+            command
+        )
         command = action.get("command")
 
         if not command:
