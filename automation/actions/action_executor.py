@@ -1,7 +1,6 @@
 from __future__ import annotations
-from automation.security.command_validator import (
-    CommandValidator
-)
+from automation.security.command_validator import (CommandValidator)
+from automation.actions.action_registry import ActionRegistry
 from typing import Any
 import subprocess
 from automation.automation_types import Automation
@@ -10,6 +9,19 @@ from automation.automation_types import Automation
 class ActionExecutor:
     def __init__(self):
         self.validator = CommandValidator()
+        self.registry = ActionRegistry()
+        self.registry.register(
+            "print",
+            self._print
+        )
+        self.registry.register(
+            "python_function",
+            self._python_function
+        )
+        self.registry.register(
+            "shell_command",
+            self._shell_command
+        )
 
     def execute(
         self,
@@ -20,32 +32,22 @@ class ActionExecutor:
 
         action_type = action.get("type")
 
-        if action_type == "print":
-            return self._print(action)
-
-        if action_type == "python_function":
-            return self._python_function(action)
-
-        if action_type == "shell_command":
-            return self._shell_command(action)
-
-        raise ValueError(
-            f"Unsupported action type: {action_type}"
+        return self.registry.execute(
+            action_type,
+            action
         )
 
     def _shell_command(
         self,
         action: dict[str, Any]
     ) -> bool:
-        self.validator.validate(
-            command
-        )
         command = action.get("command")
 
         if not command:
             raise ValueError(
                 "Missing shell command."
             )
+        self.validator.validate(command)
 
         shell = action.get(
             "shell",
