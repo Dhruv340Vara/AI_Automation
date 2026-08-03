@@ -1,4 +1,6 @@
 from __future__ import annotations
+from automation.scheduler.scheduled_task import ScheduledTask
+from automation.scheduler.scheduler_types import ExecutionResult
 from typing import Dict
 from automation.automation_types import Automation
 from automation.scheduler.scheduler import Scheduler
@@ -13,6 +15,9 @@ class AutomationRuntime:
         self.worker_pool = WorkerPool(workers)
         self._automations: Dict[str, Automation] = {}
         self.callbacks = RuntimeCallbacks()
+        self.scheduler.set_task_handler(
+            self._handle_task
+        )
 
     def start(self):
         self.worker_pool.start()
@@ -129,3 +134,35 @@ class AutomationRuntime:
         )
 
         return True
+
+    def _handle_task(
+        self,
+        task: ScheduledTask
+    ):
+
+        if not self.run_now(
+            task.automation_id
+        ):
+            return ExecutionResult.FAILED
+
+        return ExecutionResult.SUCCESS
+
+    def schedule(
+        self,
+        task: ScheduledTask
+    ):
+
+        automation = self.get(
+            task.automation_id
+        )
+
+        if automation is None:
+            raise ValueError(
+                "Automation not registered."
+            )
+
+        self.scheduler.add_task(
+            task
+        )
+
+        return task
