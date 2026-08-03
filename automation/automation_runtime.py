@@ -4,6 +4,7 @@ from automation.automation_types import Automation
 from automation.scheduler.scheduler import Scheduler
 from automation.worker.worker_pool import WorkerPool
 from automation.worker.job import Job
+from automation.runtime_callbacks import RuntimeCallbacks
 
 class AutomationRuntime:
 
@@ -11,10 +12,32 @@ class AutomationRuntime:
         self.scheduler = Scheduler()
         self.worker_pool = WorkerPool(workers)
         self._automations: Dict[str, Automation] = {}
+        self.callbacks = RuntimeCallbacks()
 
     def start(self):
         self.worker_pool.start()
         self.scheduler.start()
+
+    def register_callback(
+        self,
+        automation_id: str
+    ):
+
+        self.callbacks.register(
+            automation_id,
+            lambda: self.run_now(
+                automation_id
+            )
+        )
+
+    def unregister_callback(
+        self,
+        automation_id: str
+    ):
+
+        self.callbacks.unregister(
+            automation_id
+        )
 
     def stop(self):
         self.scheduler.stop()
@@ -27,15 +50,28 @@ class AutomationRuntime:
             f"scheduler={self.scheduler}>"
         )
 
-    def register(self, automation: Automation):
+    def register(
+        self,
+        automation: Automation
+    ):
+
         self._automations[
             automation.automation_id
         ] = automation
+
+        self.register_callback(
+            automation.automation_id
+        )
 
     def unregister(
         self,
         automation_id: str
     ) -> bool:
+
+        self.unregister_callback(
+            automation_id
+        )
+
         return (
             self._automations.pop(
                 automation_id,
