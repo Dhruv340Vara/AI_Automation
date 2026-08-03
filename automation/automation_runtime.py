@@ -7,6 +7,7 @@ from automation.scheduler.scheduler import Scheduler
 from automation.worker.worker_pool import WorkerPool
 from automation.worker.job import Job
 from automation.runtime_callbacks import RuntimeCallbacks
+from automation.actions.action_executor import ActionExecutor
 
 class AutomationRuntime:
 
@@ -18,6 +19,7 @@ class AutomationRuntime:
         self.scheduler.set_task_handler(
             self._handle_task
         )
+        self.executor = ActionExecutor()
 
     def start(self):
         self.worker_pool.start()
@@ -123,6 +125,10 @@ class AutomationRuntime:
             print(
                 f"[Runtime] Executing: "
                 f"{automation.name}"
+            )
+
+            self.executor.execute(
+                automation
             )
 
         job = Job(
