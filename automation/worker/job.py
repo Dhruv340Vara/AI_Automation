@@ -22,7 +22,10 @@ class Job:
     def execute(self):
         self.attempts += 1
         try:
-            self.result = self.target(*self.args,**self.kwargs,)
+            if callable(self.target):
+                self.result = self.target(*self.args,**self.kwargs,)
+            else:
+                self.result = self.target
             self.error = None
             return True
         except Exception as exc:
