@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from automation.webhook.webhook_server import (WebhookServer,)
 from automation.webhook.webhook_request import (WebhookRequest,)
 from automation.events import (EventDispatcher,EventListener,EventQueue,EventRegistry,TimeEventGenerator,)
@@ -9,6 +10,7 @@ from automation.triggers.trigger_engine import (TriggerEngine,)
 from automation.scheduler.scheduled_task import ScheduledTask
 from automation.scheduler.scheduler_types import ExecutionResult
 from typing import Dict
+from automation.api.api_poller import (APIPoller,)
 from automation.automation_types import Automation
 from automation.scheduler.scheduler import Scheduler
 from automation.worker.worker_pool import WorkerPool
@@ -31,6 +33,7 @@ class AutomationRuntime:
         self.event_worker = EventWorker(self.event_queue,self.event_listener,)
         self._watchers = []
         self.webhook_server = WebhookServer()
+        self._api_pollers = []
         self.trigger_engine = TriggerEngine()
         self.time_event_generator = (TimeEventGenerator())
         self.executor = ActionExecutor()
@@ -41,6 +44,7 @@ class AutomationRuntime:
         self.worker_pool.start()
         self.event_worker.start()
         self.start_watchers()
+        self.start_api_pollers()
         self.scheduler.start()
         return True
 
@@ -54,6 +58,7 @@ class AutomationRuntime:
         if not self.scheduler.is_running:
             return False
         self.scheduler.stop()
+        self.stop_api_pollers()
         self.stop_watchers()
         self.event_worker.stop()
         self.worker_pool.stop()
@@ -153,34 +158,32 @@ class AutomationRuntime:
         self.webhook_server.register(trigger)
         return trigger
 
-    def unregister_webhook_trigger(
-        self,
-        endpoint: str,
-    ):
-        self.webhook_server.unregister(
-            endpoint
-        )
+    def unregister_webhook_trigger(self,endpoint: str,):
+        self.webhook_server.unregister(endpoint)
 
-    def emit_webhook(
-        self,
-        endpoint: str,
-        method: str = "POST",
-        headers: dict | None = None,
-        body: dict | None = None,
-        remote_addr: str | None = None,
-    ):
-        request = WebhookRequest(
-            endpoint=endpoint,
-            method=method,
-            headers=headers or {},
-            body=body or {},
-            remote_addr=remote_addr,
-        )
-        event = self.webhook_server.handle(
-            request
-        )
+    def emit_webhook(self,endpoint: str,method: str = "POST",headers: dict | None = None,body: dict | None = None,remote_addr: str | None = None,):
+        request = WebhookRequest(endpoint=endpoint,method=method,headers=headers or {},body=body or {},remote_addr=remote_addr,)
+        event = self.webhook_server.handle(request)
         if event is None:
             return False
-        return self.emit_event(
-            event
-        )
+        return self.emit_event(event)
+
+    def register_api_trigger(self,trigger,):
+        poller = APIPoller(trigger,self,)
+        self._api_pollers.append(poller)
+        return poller
+
+    def unregister_api_trigger(self,poller,):
+        if poller in self._api_pollers:
+            poller.stop()
+            self._api_pollers.remove(poller)
+            return True
+        return False
+
+    def start_api_pollers(self,):
+        for poller in self._api_pollers:
+            poller.start()
+
+    def stop_api_pollers(self,):
+        for poller in self._api_pollers:
+            poller.stop()
