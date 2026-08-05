@@ -1,4 +1,15 @@
 from __future__ import annotations
+from automation.events import (
+    EventDispatcher,
+    EventListener,
+    EventQueue,
+    EventRegistry,
+    TimeEventGenerator,
+)
+
+from automation.triggers.trigger_engine import (
+    TriggerEngine,
+)
 from automation.scheduler.scheduled_task import ScheduledTask
 from automation.scheduler.scheduler_types import ExecutionResult
 from typing import Dict
@@ -18,6 +29,23 @@ class AutomationRuntime:
         self.callbacks = RuntimeCallbacks()
         self.scheduler.set_task_handler(
             self._handle_task
+        )
+        self.event_registry = EventRegistry()
+
+        self.event_dispatcher = EventDispatcher(
+            self.event_registry
+        )   
+
+        self.event_listener = EventListener(
+            self.event_dispatcher
+        )
+
+        self.event_queue = EventQueue()
+
+        self.trigger_engine = TriggerEngine()
+
+        self.time_event_generator = (
+            TimeEventGenerator()
         )
         self.executor = ActionExecutor()
 
@@ -108,3 +136,44 @@ class AutomationRuntime:
             raise ValueError("Automation not registered.")
         self.scheduler.add_task(task)
         return task
+
+    def emit_event(
+        self,
+        event,
+    ):
+        """
+        Emit an event into
+        the runtime.
+        """
+
+        self.event_queue.put(
+            event
+        )
+
+        queued = self.event_queue.get()
+
+        if queued is None:
+            return False
+
+        self.event_listener.listen(
+            queued
+        )
+
+        self.event_queue.task_done()
+
+        return True
+
+    def generate_time_event(
+        self,
+        trigger,
+    ):
+
+        event = (
+            self.time_event_generator.generate(
+                trigger
+            )
+        )
+
+        return self.emit_event(
+            event
+        )
