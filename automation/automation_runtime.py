@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from automation.conditions.condition_evaluator import (ConditionEvaluator,)
 from automation.manual.manual_trigger_manager import (ManualTriggerManager,)
 from automation.webhook.webhook_server import (WebhookServer,)
 from automation.webhook.webhook_request import (WebhookRequest,)
@@ -35,6 +36,7 @@ class AutomationRuntime:
         self.webhook_server = WebhookServer()
         self._api_pollers = []
         self.manual_manager = (ManualTriggerManager(self))
+        self.condition_evaluator = (ConditionEvaluator())
         self.trigger_engine = TriggerEngine()
         self.time_event_generator = (TimeEventGenerator())
         self.executor = ActionExecutor()
@@ -119,8 +121,14 @@ class AutomationRuntime:
         return task
 
     def emit_event(self,event,):
-        self.event_queue.put(event)
-        return True
+        context = {}
+        if hasattr(event,"payload",):
+            context = event.payload
+        if (self.condition_evaluator.count()> 0):
+            if not self.evaluate_conditions(context):
+                return False
+            self.event_queue.put(event)
+            return True
 
     def generate_time_event(self,trigger,):
         event = (self.time_event_generator.generate(trigger))
@@ -197,3 +205,18 @@ class AutomationRuntime:
 
     def trigger_manual(self,trigger_name: str,user: str | None = None,metadata: dict | None = None,):
         return (self.manual_manager.trigger(trigger_name=trigger_name,user=user,metadata=metadata,))
+
+    def add_condition(self,condition,):
+        return (self.condition_evaluator.add(condition))
+
+    def remove_condition(self,condition,):
+        return (self.condition_evaluator.remove(condition))
+
+    def clear_conditions(self,):
+        self.condition_evaluator.clear()
+
+    def evaluate_conditions(self,context: dict,):
+        return (self.condition_evaluator.evaluate(context))
+
+    def evaluate_condition_details(self,context: dict,):
+        return (self.condition_evaluator.evaluate_all(context))
