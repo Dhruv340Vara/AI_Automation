@@ -27,7 +27,7 @@ from .event_queue import (
 from .event_worker import (
     EventWorker,
 )
-
+from .file_event import FileEventFactory
 from .time_event import (
     TimeEventFactory,
 )
@@ -40,7 +40,7 @@ __all__ = [
     "Event",
     "EventPriority",
     "EventStatus",
-
+    "FileEventFactory",
     "EventType",
 
     "EventRegistry",

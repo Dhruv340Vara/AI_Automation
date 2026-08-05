@@ -1,15 +1,10 @@
 from __future__ import annotations
-from automation.events import (
-    EventDispatcher,
-    EventListener,
-    EventQueue,
-    EventRegistry,
-    TimeEventGenerator,
-)
 
-from automation.triggers.trigger_engine import (
-    TriggerEngine,
-)
+
+from automation.events import (EventDispatcher,EventListener,EventQueue,EventRegistry,TimeEventGenerator,)
+from automation.events import (EventWorker,)
+from automation.file_system import (FileWatcher,)
+from automation.triggers.trigger_engine import (TriggerEngine,)
 from automation.scheduler.scheduled_task import ScheduledTask
 from automation.scheduler.scheduler_types import ExecutionResult
 from typing import Dict
@@ -27,60 +22,38 @@ class AutomationRuntime:
         self.worker_pool = WorkerPool(workers)
         self._automations: Dict[str, Automation] = {}
         self.callbacks = RuntimeCallbacks()
-        self.scheduler.set_task_handler(
-            self._handle_task
-        )
+        self.scheduler.set_task_handler(self._handle_task)
         self.event_registry = EventRegistry()
-
-        self.event_dispatcher = EventDispatcher(
-            self.event_registry
-        )   
-
-        self.event_listener = EventListener(
-            self.event_dispatcher
-        )
-
+        self.event_dispatcher = EventDispatcher(self.event_registry)   
+        self.event_listener = EventListener(self.event_dispatcher)
         self.event_queue = EventQueue()
-
+        self.event_worker = EventWorker(self.event_queue,self.event_listener,)
+        self._watchers = []
         self.trigger_engine = TriggerEngine()
-
-        self.time_event_generator = (
-            TimeEventGenerator()
-        )
+        self.time_event_generator = (TimeEventGenerator())
         self.executor = ActionExecutor()
 
     def start(self):
         if self.scheduler.is_running:
             return False
         self.worker_pool.start()
+        self.event_worker.start()
+        self.start_watchers()
         self.scheduler.start()
         return True
 
-    def register_callback(
-        self,
-        automation_id: str
-    ):
+    def register_callback(self,automation_id: str):
+        self.callbacks.register(automation_id,lambda: self.run_now(automation_id))
 
-        self.callbacks.register(
-            automation_id,
-            lambda: self.run_now(
-                automation_id
-            )
-        )
-
-    def unregister_callback(
-        self,
-        automation_id: str
-    ):
-
-        self.callbacks.unregister(
-            automation_id
-        )
+    def unregister_callback(self,automation_id: str):
+        self.callbacks.unregister(automation_id)
 
     def stop(self):
         if not self.scheduler.is_running:
             return False
         self.scheduler.stop()
+        self.stop_watchers()
+        self.event_worker.stop()
         self.worker_pool.stop()
         return True
 
@@ -137,43 +110,39 @@ class AutomationRuntime:
         self.scheduler.add_task(task)
         return task
 
-    def emit_event(
-        self,
-        event,
-    ):
-        """
-        Emit an event into
-        the runtime.
-        """
-
-        self.event_queue.put(
-            event
-        )
-
-        queued = self.event_queue.get()
-
-        if queued is None:
-            return False
-
-        self.event_listener.listen(
-            queued
-        )
-
-        self.event_queue.task_done()
-
+    def emit_event(self,event,):
+        self.event_queue.put(event)
         return True
 
-    def generate_time_event(
-        self,
-        trigger,
-    ):
-
-        event = (
-            self.time_event_generator.generate(
-                trigger
-            )
-        )
-
+    def generate_time_event(self,trigger,):
+        event = (self.time_event_generator.generate(trigger))
         return self.emit_event(
             event
         )
+
+    def register_watcher(self,watcher,):
+        self._watchers.append(watcher)
+        return watcher
+
+
+    def unregister_watcher(self,watcher,):
+        if watcher in self._watchers:
+            self._watchers.remove(watcher)
+            return True
+        return False
+
+
+    def start_watchers(self,):
+        for watcher in self._watchers:
+            watcher.start()
+
+
+    def stop_watchers(self,):
+        for watcher in self._watchers:
+            watcher.stop()
+
+
+    def register_file_trigger(self,trigger,):
+        watcher = FileWatcher(trigger,self,)
+        self.register_watcher(watcher)
+        return watcher
