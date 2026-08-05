@@ -30,9 +30,6 @@ class Scheduler:
             self._tasks[task.task_id] = task
         return task
 
-    def _locked(self):
-        return self._lock
-
     def remove_task(self, task_id: str):
         with self._lock:
             return self._tasks.pop(task_id, None)
@@ -166,13 +163,21 @@ class Scheduler:
             )
         self._poll_interval = seconds
 
+    
     def find_due_tasks(self):
         with self._lock:
-            due = []
-            for task in self.pending_tasks():
-                if task.should_run():
-                    due.append(task)
-            return due
+            tasks = list(
+                self._tasks.values()
+            )
+        due = []
+
+        for task in tasks:
+            if (
+                task.status == ScheduleStatus.PENDING
+                and task.should_run()
+            ):
+                due.append(task)
+        return due
 
     def _execute_due_tasks(self):
         due_tasks = self.find_due_tasks()
@@ -202,8 +207,11 @@ class Scheduler:
                 task.mark_failed()
             else:
                 task.cancel()
-        except Exception:
-            task.cancel()
+        except Exception as exc:
+            print(
+                f"Scheduler Error: {exc}"
+            )
+        task.cancel()
 
     def set_task_handler(self, handler):
         self._task_handler = handler

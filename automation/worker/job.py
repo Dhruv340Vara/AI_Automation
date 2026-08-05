@@ -1,6 +1,5 @@
 from __future__ import annotations
 import uuid
-from datetime import datetime
 from typing import Callable, Any
 from datetime import datetime, timedelta
 
@@ -10,13 +9,13 @@ class Job:
         self.job_id = str(uuid.uuid4())
         self.target = target
         self.args = args
+        self.max_retries = kwargs.pop("max_retries",0,)
+        self.retry_delay = kwargs.pop("retry_delay",0,)
         self.kwargs = kwargs
         self.created_at = datetime.now()
         self.attempts = 0
-        self.max_retries = kwargs.pop("max_retries",0,)
         self.result = None
         self.error = None
-        self.retry_delay = kwargs.pop("retry_delay",0,)
         self.next_retry_at = None
 
     def execute(self):

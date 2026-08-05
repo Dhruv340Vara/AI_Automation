@@ -22,8 +22,11 @@ class AutomationRuntime:
         self.executor = ActionExecutor()
 
     def start(self):
+        if self.scheduler.is_running:
+            return False
         self.worker_pool.start()
         self.scheduler.start()
+        return True
 
     def register_callback(
         self,
@@ -47,8 +50,11 @@ class AutomationRuntime:
         )
 
     def stop(self):
+        if not self.scheduler.is_running:
+            return False
         self.scheduler.stop()
         self.worker_pool.stop()
+        return True
 
     def __repr__(self):
         return (
@@ -57,118 +63,48 @@ class AutomationRuntime:
             f"scheduler={self.scheduler}>"
         )
 
-    def register(
-        self,
-        automation: Automation
-    ):
+    def register(self,automation: Automation):
+        self._automations[automation.automation_id] = automation
+        self.register_callback(automation.automation_id)
 
-        self._automations[
-            automation.automation_id
-        ] = automation
+    def unregister(self,automation_id: str) -> bool:
+        self.unregister_callback(automation_id)
+        return (self._automations.pop(automation_id,None) is not None)
 
-        self.register_callback(
-            automation.automation_id
-        )
-
-    def unregister(
-        self,
-        automation_id: str
-    ) -> bool:
-
-        self.unregister_callback(
-            automation_id
-        )
-
-        return (
-            self._automations.pop(
-                automation_id,
-                None
-            )
-            is not None
-        )
-
-    def get(
-        self,
-        automation_id: str
-    ):
-        return self._automations.get(
-            automation_id
-        )
+    def get(self,automation_id: str):
+        return self._automations.get(automation_id)
 
     def list_automations(self):
-        return list(
-            self._automations.values()
-        )
+        return list(self._automations.values())
 
     def count(self):
-        return len(
-            self._automations
-        )
+        return len(self._automations)
 
-    def run_now(
-        self,
-        automation_id: str
-    ) -> bool:
-
-        automation = self.get(
-            automation_id
-        )
-
+    def run_now(self,automation_id: str) -> bool:
+        automation = self.get(automation_id)
         if automation is None:
             return False
-
         if not automation.is_enabled():
             return False
 
         def execute():
-
             print(
                 f"[Runtime] Executing: "
                 f"{automation.name}"
             )
-
-            self.executor.execute(
-                automation
-            )
-
-        job = Job(
-            execute
-        )
-
-        self.worker_pool.submit(
-            job
-        )
-
+            self.executor.execute(automation)
+        job = Job(execute)
+        self.worker_pool.submit(job)
         return True
 
-    def _handle_task(
-        self,
-        task: ScheduledTask
-    ):
-
-        if not self.run_now(
-            task.automation_id
-        ):
+    def _handle_task(self,task: ScheduledTask):
+        if not self.run_now(task.automation_id):
             return ExecutionResult.FAILED
-
         return ExecutionResult.SUCCESS
 
-    def schedule(
-        self,
-        task: ScheduledTask
-    ):
-
-        automation = self.get(
-            task.automation_id
-        )
-
+    def schedule(self,task: ScheduledTask):
+        automation = self.get(task.automation_id)
         if automation is None:
-            raise ValueError(
-                "Automation not registered."
-            )
-
-        self.scheduler.add_task(
-            task
-        )
-
+            raise ValueError("Automation not registered.")
+        self.scheduler.add_task(task)
         return task
