@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-
+from automation.webhook.webhook_server import (WebhookServer,)
+from automation.webhook.webhook_request import (WebhookRequest,)
 from automation.events import (EventDispatcher,EventListener,EventQueue,EventRegistry,TimeEventGenerator,)
 from automation.events import (EventWorker,)
 from automation.file_system import (FileWatcher,)
@@ -29,6 +30,7 @@ class AutomationRuntime:
         self.event_queue = EventQueue()
         self.event_worker = EventWorker(self.event_queue,self.event_listener,)
         self._watchers = []
+        self.webhook_server = WebhookServer()
         self.trigger_engine = TriggerEngine()
         self.time_event_generator = (TimeEventGenerator())
         self.executor = ActionExecutor()
@@ -146,3 +148,39 @@ class AutomationRuntime:
         watcher = FileWatcher(trigger,self,)
         self.register_watcher(watcher)
         return watcher
+
+    def register_webhook_trigger(self,trigger,):
+        self.webhook_server.register(trigger)
+        return trigger
+
+    def unregister_webhook_trigger(
+        self,
+        endpoint: str,
+    ):
+        self.webhook_server.unregister(
+            endpoint
+        )
+
+    def emit_webhook(
+        self,
+        endpoint: str,
+        method: str = "POST",
+        headers: dict | None = None,
+        body: dict | None = None,
+        remote_addr: str | None = None,
+    ):
+        request = WebhookRequest(
+            endpoint=endpoint,
+            method=method,
+            headers=headers or {},
+            body=body or {},
+            remote_addr=remote_addr,
+        )
+        event = self.webhook_server.handle(
+            request
+        )
+        if event is None:
+            return False
+        return self.emit_event(
+            event
+        )
