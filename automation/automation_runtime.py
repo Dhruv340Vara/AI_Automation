@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+
+from automation.pipeline.pipeline import (EventPipeline,)
+from automation.pipeline.pipeline_executor import (PipelineExecutor,)
 from automation.conditions.condition_evaluator import (ConditionEvaluator,)
 from automation.manual.manual_trigger_manager import (ManualTriggerManager,)
 from automation.webhook.webhook_server import (WebhookServer,)
@@ -37,6 +40,8 @@ class AutomationRuntime:
         self._api_pollers = []
         self.manual_manager = (ManualTriggerManager(self))
         self.condition_evaluator = (ConditionEvaluator())
+        self.pipeline = EventPipeline()
+        self.pipeline_executor = (PipelineExecutor(self.pipeline))
         self.trigger_engine = TriggerEngine()
         self.time_event_generator = (TimeEventGenerator())
         self.executor = ActionExecutor()
@@ -121,14 +126,22 @@ class AutomationRuntime:
         return task
 
     def emit_event(self,event,):
+        event = self.execute_pipeline(event)
+        if event is None:
+            return False
         context = {}
         if hasattr(event,"payload",):
             context = event.payload
-        if (self.condition_evaluator.count()> 0):
+        if (self.condition_evaluator.count() > 0):
             if not self.evaluate_conditions(context):
                 return False
-            self.event_queue.put(event)
-            return True
+        self.event_queue.put(event)
+        queued = self.event_queue.get()
+        if queued is None:
+            return False
+        self.event_listener.listen(queued)
+        self.event_queue.task_done()
+        return True
 
     def generate_time_event(self,trigger,):
         event = (self.time_event_generator.generate(trigger))
@@ -220,3 +233,15 @@ class AutomationRuntime:
 
     def evaluate_condition_details(self,context: dict,):
         return (self.condition_evaluator.evaluate_all(context))
+
+    def add_pipeline_stage(self,stage,):
+        return (self.pipeline.add_stage(stage))
+
+    def remove_pipeline_stage(self,stage,):
+        return (self.pipeline.remove_stage(stage))
+
+    def clear_pipeline(self,):
+        self.pipeline.clear()
+
+    def execute_pipeline(self,event,):
+        return (self.pipeline_executor.execute(event))
