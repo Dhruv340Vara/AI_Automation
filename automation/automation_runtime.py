@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-
+from automation.manual.manual_trigger_manager import (ManualTriggerManager,)
 from automation.webhook.webhook_server import (WebhookServer,)
 from automation.webhook.webhook_request import (WebhookRequest,)
 from automation.events import (EventDispatcher,EventListener,EventQueue,EventRegistry,TimeEventGenerator,)
@@ -34,6 +34,7 @@ class AutomationRuntime:
         self._watchers = []
         self.webhook_server = WebhookServer()
         self._api_pollers = []
+        self.manual_manager = (ManualTriggerManager(self))
         self.trigger_engine = TriggerEngine()
         self.time_event_generator = (TimeEventGenerator())
         self.executor = ActionExecutor()
@@ -187,3 +188,12 @@ class AutomationRuntime:
     def stop_api_pollers(self,):
         for poller in self._api_pollers:
             poller.stop()
+
+    def register_manual_trigger(self,trigger,):
+        return (self.manual_manager.register(trigger))
+
+    def unregister_manual_trigger(self,trigger_name: str,):
+        return (self.manual_manager.unregister(trigger_name))
+
+    def trigger_manual(self,trigger_name: str,user: str | None = None,metadata: dict | None = None,):
+        return (self.manual_manager.trigger(trigger_name=trigger_name,user=user,metadata=metadata,))
