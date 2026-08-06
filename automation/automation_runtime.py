@@ -1,26 +1,27 @@
 from __future__ import annotations
 
 
-from automation.pipeline.pipeline import (EventPipeline,)
-from automation.pipeline.pipeline_executor import (PipelineExecutor,)
-from automation.conditions.condition_evaluator import (ConditionEvaluator,)
-from automation.manual.manual_trigger_manager import (ManualTriggerManager,)
-from automation.webhook.webhook_server import (WebhookServer,)
-from automation.webhook.webhook_request import (WebhookRequest,)
-from automation.events import (EventDispatcher,EventListener,EventQueue,EventRegistry,TimeEventGenerator,)
-from automation.events import (EventWorker,)
-from automation.file_system import (FileWatcher,)
-from automation.triggers.trigger_engine import (TriggerEngine,)
-from automation.scheduler.scheduled_task import ScheduledTask
-from automation.scheduler.scheduler_types import ExecutionResult
 from typing import Dict
+from automation.actions.action_executor import ActionExecutor
+from automation.ai.automation_generator import (AutomationGenerator,)
 from automation.api.api_poller import (APIPoller,)
 from automation.automation_types import Automation
+from automation.conditions.condition_evaluator import (ConditionEvaluator,)
+from automation.events.event import (Event,)
+from automation.events import (EventDispatcher,EventListener,EventQueue,EventRegistry,TimeEventGenerator,EventWorker)
+from automation.file_system import (FileWatcher,)
+from automation.manual.manual_trigger_manager import (ManualTriggerManager,)
+from automation.pipeline.pipeline_executor import (PipelineExecutor,)
+from automation.pipeline.pipeline import (EventPipeline,)
+from automation.runtime_callbacks import RuntimeCallbacks
+from automation.scheduler.scheduled_task import ScheduledTask
+from automation.scheduler.scheduler_types import ExecutionResult
 from automation.scheduler.scheduler import Scheduler
+from automation.triggers.trigger_engine import (TriggerEngine,)
+from automation.webhook.webhook_server import (WebhookServer,)
+from automation.webhook.webhook_request import (WebhookRequest,)
 from automation.worker.worker_pool import WorkerPool
 from automation.worker.job import Job
-from automation.runtime_callbacks import RuntimeCallbacks
-from automation.actions.action_executor import ActionExecutor
 
 class AutomationRuntime:
 
@@ -30,6 +31,8 @@ class AutomationRuntime:
         self._automations: Dict[str, Automation] = {}
         self.callbacks = RuntimeCallbacks()
         self.scheduler.set_task_handler(self._handle_task)
+        self._automations = []
+        self.automation_generator = (AutomationGenerator())
         self.event_registry = EventRegistry()
         self.event_dispatcher = EventDispatcher(self.event_registry)   
         self.event_listener = EventListener(self.event_dispatcher)
@@ -245,3 +248,26 @@ class AutomationRuntime:
 
     def execute_pipeline(self,event,):
         return (self.pipeline_executor.execute(event))
+
+    def register_automation(self,automation,):
+        automation.validate()
+        self._automations.append(automation)
+        return automation
+
+    def unregister_automation(self,automation_id,):
+        for automation in self._automations:
+            if (automation.automation_id== automation_id):
+                self._automations.remove(automation)
+                return True
+        return False
+
+    def automations(self,):
+        return list(self._automations)
+
+    def automation_count(self,):
+        return len(self._automations)
+
+    def generate_automation(self,plan,):
+        automation = (self.automation_generator.generate(plan))
+        self.register_automation(automation)
+        return automation
