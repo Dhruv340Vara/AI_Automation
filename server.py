@@ -24,12 +24,14 @@ from routes.wifi import wifi_bp
 from routes.battery import battery_bp
 from routes.storage import storage_bp
 from routes.device import device_bp
+from routes.execute import execute_bp
 
 app = Flask(__name__)
 
 initialize_storage()
 app.register_blueprint(location_bp)
 app.register_blueprint(sms_bp)
+app.register_blueprint(execute_bp)
 app.register_blueprint(battery_bp)
 app.register_blueprint(recycle_bp)
 app.register_blueprint(restore_bp)

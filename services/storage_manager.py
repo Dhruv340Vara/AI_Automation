@@ -1,36 +1,44 @@
 import os
 import json
 
-ROOT_DIR="/storage/emulated/0/AI_Automation"
+def get_root_dir():
+    # Android environment
+    if "ANDROID_ROOT" in os.environ:
+        return "/storage/emulated/0/AI_Automation"
+    else:
+        # Laptop / Linux
+        return os.path.join(os.getcwd(), "data")
 
-UPLOADS_DIR=os.path.join(ROOT_DIR,"Uploads")
-DOWNLOADS_DIR=os.path.join(ROOT_DIR,"Downloads")
-PHOTOS_DIR=os.path.join(ROOT_DIR,"Photos")
-VIDEOS_DIR=os.path.join(ROOT_DIR,"Videos")
-DOCUMENTS_DIR=os.path.join(ROOT_DIR,"Documents")
-BACKUPS_DIR=os.path.join(ROOT_DIR,"Backups")
-TEMP_DIR=os.path.join(ROOT_DIR,"Temp")
-RECYCLE_BIN_DIR=os.path.join(ROOT_DIR,"RecycleBin")
-LOGS_DIR=os.path.join(ROOT_DIR,"Logs")
-AI_DATA_DIR=os.path.join(ROOT_DIR,"AI")
+ROOT_DIR = get_root_dir()
 
-ALL_FOLDERS=[
-ROOT_DIR,
-UPLOADS_DIR,
-DOWNLOADS_DIR,
-PHOTOS_DIR,
-VIDEOS_DIR,
-DOCUMENTS_DIR,
-BACKUPS_DIR,
-TEMP_DIR,
-RECYCLE_BIN_DIR,
-LOGS_DIR,
-AI_DATA_DIR
+UPLOADS_DIR = os.path.join(ROOT_DIR, "Uploads")
+DOWNLOADS_DIR = os.path.join(ROOT_DIR, "Downloads")
+PHOTOS_DIR = os.path.join(ROOT_DIR, "Photos")
+VIDEOS_DIR = os.path.join(ROOT_DIR, "Videos")
+DOCUMENTS_DIR = os.path.join(ROOT_DIR, "Documents")
+BACKUPS_DIR = os.path.join(ROOT_DIR, "Backups")
+TEMP_DIR = os.path.join(ROOT_DIR, "Temp")
+RECYCLE_BIN_DIR = os.path.join(ROOT_DIR, "RecycleBin")
+LOGS_DIR = os.path.join(ROOT_DIR, "Logs")
+AI_DATA_DIR = os.path.join(ROOT_DIR, "AI")
+
+ALL_FOLDERS = [
+    ROOT_DIR,
+    UPLOADS_DIR,
+    DOWNLOADS_DIR,
+    PHOTOS_DIR,
+    VIDEOS_DIR,
+    DOCUMENTS_DIR,
+    BACKUPS_DIR,
+    TEMP_DIR,
+    RECYCLE_BIN_DIR,
+    LOGS_DIR,
+    AI_DATA_DIR
 ]
 
 def initialize_storage():
     for folder in ALL_FOLDERS:
-        os.makedirs(folder,exist_ok=True)
+        os.makedirs(folder, exist_ok=True)
     return True
 
 def storage_exists():
@@ -49,13 +57,13 @@ def get_photo_path():
     return PHOTOS_DIR
 
 def get_recycle_files_path():
-    path=os.path.join(RECYCLE_BIN_DIR,"files")
-    os.makedirs(path,exist_ok=True)
+    path = os.path.join(RECYCLE_BIN_DIR, "files")
+    os.makedirs(path, exist_ok=True)
     return path
 
 def get_recycle_metadata_path():
-    path=os.path.join(RECYCLE_BIN_DIR,"metadata")
-    os.makedirs(path,exist_ok=True)
+    path = os.path.join(RECYCLE_BIN_DIR, "metadata")
+    os.makedirs(path, exist_ok=True)
     return path
 
 def get_backup_path():

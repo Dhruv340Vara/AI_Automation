@@ -3,7 +3,11 @@ import os
 from datetime import datetime
 
 
-SAVE_DIR = "/storage/emulated/0/AI_Automation"
+BASE_DIR = os.getcwd()  # current project folder
+SAVE_DIR = os.path.join(BASE_DIR, "data", "camera")
+
+os.makedirs(SAVE_DIR, exist_ok=True)
+# SAVE_DIR = "/storage/emulated/0/AI_Automation"
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 
