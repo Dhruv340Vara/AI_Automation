@@ -1,2 +1,12 @@
 Flask
 psutil
+
+# Voice
+SpeechRecognition
+pyttsx3
+
+# Audio (optional but recommended)
+pyaudio
+
+# Utilities (future safe)
+requests
