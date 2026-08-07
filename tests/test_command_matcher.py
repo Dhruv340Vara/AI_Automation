@@ -1,91 +1,34 @@
-from automation.assistant.command_matcher import (
+from automation.commands.command_parser import (
+    CommandParser,
+)
+
+from automation.commands.command_matcher import (
     CommandMatcher,
 )
 
+
+parser = CommandParser()
 matcher = CommandMatcher()
-
-matcher.register(
-
-    "call",
-
-    "call",
-
-    "dial",
-
-    "phone",
-
-)
-
-matcher.register(
-
-    "torch",
-
-    "torch",
-
-    "flashlight",
-
-    "flash",
-
-)
-
-matcher.register(
-
-    "wifi",
-
-    "wifi",
-
-    "internet",
-
-)
 
 print(matcher)
 
 print()
 
-print(
+commands = [
+    "Open Firefox",
+    "Run pwd",
+    "Create folder Test",
+    "Delete file demo.txt",
+    "Copy folder A B",
+    "Move file A B",
+    "Unknown command",
+]
 
-    matcher.match(
+for cmd in commands:
 
-        "Call Mummy"
+    parsed = parser.parse(cmd)
+    tokens = parser.tokenize(cmd)
 
-    )
+    action = matcher.match(tokens)
 
-)
-
-print(
-
-    matcher.match(
-
-        "Turn on flashlight"
-
-    )
-
-)
-
-print(
-
-    matcher.match(
-
-        "Disable WiFi"
-
-    )
-
-)
-
-print(
-
-    matcher.match(
-
-        "Open Chrome"
-
-    )
-
-)
-
-print()
-
-print(
-
-    matcher.rules()
-
-)
+    print(f"{cmd} → {action}")
