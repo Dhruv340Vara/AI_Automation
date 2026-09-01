@@ -79,9 +79,10 @@ class AIBrain:
     def ask(self, message: str):
         if self.llm is None:
             raise RuntimeError("LLM is not configured.")
+        llm_context = self._build_llm_context()
         user_message = AIMessage(role=MessageRole.USER,content=message,)
         self.receive(user_message)
-        llm_message = LLMMessage(user=message,)
+        llm_message = LLMMessage(user=message,context=llm_context,)
         response = self.llm.generate(llm_message)
         if response.success:
             self.receive(AIMessage(role=MessageRole.ASSISTANT,content=response.content,))
@@ -94,3 +95,11 @@ class AIBrain:
 
     def set_llm(self, llm: LLMAdapter):
         self.llm = llm
+
+    def _build_llm_context(self):
+        return {
+            "conversation": [
+                {"role": message.role.value,"content": message.content,}
+                for message in self.context.messages
+            ]
+        }

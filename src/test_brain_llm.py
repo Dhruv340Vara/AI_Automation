@@ -1,5 +1,3 @@
-import time
-
 from automation.ai.ai_brain import AIBrain
 from automation.ai.llm.ollama_adapter import OllamaAdapter
 
@@ -10,18 +8,29 @@ llm = OllamaAdapter(
 
 brain = AIBrain(llm=llm)
 
-print(brain)
-
 print("LLM available:", brain.llm_available())
 
-start = time.time()
 
-response = brain.ask("Hello, introduce yourself.")
+response = brain.ask(
+    "My name is Dhruv."
+)
 
-elapsed = time.time() - start
+print("\nUser: My name is Dhruv.")
+print("Assistant:", response.content)
 
-print("Time:", round(elapsed, 2), "seconds")
 
-print("Success:", response.success)
+response = brain.ask(
+    "What is my name?"
+)
 
-print("Response:", response.content)
+print("\nUser: What is my name?")
+print("Assistant:", response.content)
+
+
+print("\nHistory:")
+
+for message in brain.history():
+    print(
+        f"{message.role.value}: "
+        f"{message.content}"
+    )

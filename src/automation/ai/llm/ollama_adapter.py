@@ -1,4 +1,5 @@
 from __future__ import annotations
+from email import message
 
 import requests
 
@@ -58,93 +59,36 @@ class OllamaAdapter(
 
     # ---------------------------- #
 
-    def generate(
-        self,
-        message: LLMMessage,
-    ) -> LLMResponse:
-
+    def generate(self,message: LLMMessage,) -> LLMResponse:
         try:
-
-            prompt = message.user
-
+            prompt = self._build_prompt(message)
             if message.system:
-
-                prompt = (
-
-                    f"{message.system}\n\n"
-
-                    f"{message.user}"
-
-                )
-
-            response = requests.post(
-
-                f"{self.host}/api/generate",
-
-                json={
-
-                    "model": self.model,
-
-                    "prompt": prompt,
-
-                    "stream": False,
-
-                },
-
-                timeout=120,
-
-            )
-
+                prompt = (f"{message.system}\n\n{message.user}")
+            response = requests.post(f"{self.host}/api/generate",json={"model": self.model,"prompt": prompt,"stream": False,},timeout=120,)
             response.raise_for_status()
-
             data = response.json()
-
-            result = LLMResponse(
-
-                success=True,
-
-                content=data.get(
-                    "response",
-                    "",
-                ),
-
-                model=data.get(
-                    "model",
-                    self.model,
-                ),
-
-                finish_reason=(
-                    "stop"
-                    if data.get("done")
-                    else ""
-                ),
-
-            )
-
+            result = LLMResponse(success=True,content=data.get("response","",),model=data.get("model",self.model,),finish_reason=("stop"if data.get("done")else ""),)
             result.usage = {
-
-                "prompt_eval_count":
-                    data.get(
-                        "prompt_eval_count"
-                    ),
-
-                "eval_count":
-                    data.get(
-                        "eval_count"
-                    ),
-
+                "prompt_eval_count":data.get("prompt_eval_count"),
+                "eval_count":data.get("eval_count"),
             }
-
             return result
-
         except Exception as error:
+            return LLMResponse(success=False,content=str(error),model=self.model,)
 
-            return LLMResponse(
-
-                success=False,
-
-                content=str(error),
-
-                model=self.model,
-
-            )
+    def _build_prompt(self,message: LLMMessage,) -> str:
+        parts = []
+        if message.system:
+            parts.append(message.system)
+        conversation = message.context.get("conversation",[],)
+        for item in conversation:
+            role = item.get("role","",)
+            content = item.get("content","",)
+            if not content:
+                continue
+            if role == "user":
+                parts.append(f"User: {content}")
+            elif role == "assistant":
+                parts.append(f"Assistant: {content}")
+        parts.append(f"User: {message.user}")
+        return "\n\n".join(parts)
