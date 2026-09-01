@@ -4,16 +4,19 @@ from automation.ai.tool_executor import (ToolExecutor,)
 from automation.ai.tool_registry import (ToolRegistry,)
 from automation.ai.memory_engine import (MemoryEngine,)
 from automation.ai.ai_context import (AIContext,)
-from automation.ai.ai_message import (AIMessage,)
+from automation.ai.ai_message import (AIMessage, MessageRole,)
 from automation.ai.ai_session import (AISession,)
+from automation.ai.llm.llm_adapter import LLMAdapter
+from automation.ai.llm.llm_message import LLMMessage
 
 class AIBrain:
 
-    def __init__(self):
+    def __init__(self, llm: LLMAdapter | None = None):
         self.session = AISession()
         self.memory = MemoryEngine()
         self.tool_registry = ToolRegistry()
         self.tool_executor = ToolExecutor(self.tool_registry)
+        self.llm = llm
 
     @property
     def context(self) -> AIContext:
@@ -43,7 +46,8 @@ class AIBrain:
         return self.session.is_active()
 
     def __repr__(self):
-        return (f"<AIBrain messages={len(self.context)} active={self.is_active()}>")
+        llm_name = (self.llm.__class__.__name__ if self.llm else "None")
+        return (f"<AIBrain messages={len(self.context)} active={self.is_active()} llm={llm_name}>")
 
     def remember(self,key: str,value,):
         self.memory.set(key,value,)
@@ -71,3 +75,22 @@ class AIBrain:
 
     def available_tools(self,):
         return self.tool_registry.names()
+
+    def ask(self, message: str):
+        if self.llm is None:
+            raise RuntimeError("LLM is not configured.")
+        user_message = AIMessage(role=MessageRole.USER,content=message,)
+        self.receive(user_message)
+        llm_message = LLMMessage(user=message,)
+        response = self.llm.generate(llm_message)
+        if response.success:
+            self.receive(AIMessage(role=MessageRole.ASSISTANT,content=response.content,))
+        return response
+
+    def llm_available(self):
+        if self.llm is None:
+            return False
+        return self.llm.available()
+
+    def set_llm(self, llm: LLMAdapter):
+        self.llm = llm
