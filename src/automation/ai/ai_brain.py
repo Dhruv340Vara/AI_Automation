@@ -80,15 +80,49 @@ class AIBrain:
     def ask(self, message: str):
         if self.llm is None:
             raise RuntimeError("LLM is not configured.")
+
+        # 1. Retrieve relevant memories BEFORE saving current message
         llm_context = self._build_llm_context(query=message)
-        user_message = AIMessage(role=MessageRole.USER,content=message,)
+
+        # 2. Add user message to short-term conversation
+        user_message = AIMessage(
+            role=MessageRole.USER,
+            content=message,
+        )
         self.receive(user_message)
-        llm_message = LLMMessage(user=message,context=llm_context,)
+
+        # 3. Automatically save user message to long-term memory
+        self.memory.remember_conversation(
+            role="user",
+            content=message,
+            importance=0.5,
+        )
+
+        # 4. Send request to LLM
+        llm_message = LLMMessage(
+            user=message,
+            context=llm_context,
+        )
+
         response = self.llm.generate(llm_message)
+
+        # 5. If LLM succeeds, save assistant response
         if response.success:
-            self.receive(
-                AIMessage(role=MessageRole.ASSISTANT,content=response.content,)
+            assistant_message = AIMessage(
+                role=MessageRole.ASSISTANT,
+                content=response.content,
             )
+
+            # Short-term history
+            self.receive(assistant_message)
+
+            # Long-term memory
+            self.memory.remember_conversation(
+                role="assistant",
+                content=response.content,
+                importance=0.3,
+            )
+
         return response
 
     def llm_available(self):

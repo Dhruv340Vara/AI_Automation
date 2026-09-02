@@ -1,1 +1,38 @@
-{}
+{
+    "3e41d1b4-fcec-4cc9-a9e1-d98ae1face39": {
+        "id": "3e41d1b4-fcec-4cc9-a9e1-d98ae1face39",
+        "type": "conversation",
+        "role": "user",
+        "content": "My name is Dhruv.",
+        "importance": 0.5,
+        "created_at": "2026-09-02T10:33:16",
+        "metadata": {}
+    },
+    "27d3c121-c676-470a-a156-a343dd108f86": {
+        "id": "27d3c121-c676-470a-a156-a343dd108f86",
+        "type": "conversation",
+        "role": "assistant",
+        "content": "Hello Dhruv! Nice to meet you. How can I assist you today?",
+        "importance": 0.3,
+        "created_at": "2026-09-02T10:34:24",
+        "metadata": {}
+    },
+    "74055dc4-1dfc-44e2-bc40-f3dfb7f2808f": {
+        "id": "74055dc4-1dfc-44e2-bc40-f3dfb7f2808f",
+        "type": "conversation",
+        "role": "user",
+        "content": "What is my name?",
+        "importance": 0.5,
+        "created_at": "2026-09-02T10:34:24",
+        "metadata": {}
+    },
+    "f961b041-6ca3-4099-ba7d-bccfd53e15a6": {
+        "id": "f961b041-6ca3-4099-ba7d-bccfd53e15a6",
+        "type": "conversation",
+        "role": "assistant",
+        "content": "Your name is Dhruv, as you mentioned at the beginning. Is there anything specific you'd like to know or discuss about your name or any other topic?",
+        "importance": 0.3,
+        "created_at": "2026-09-02T10:34:45",
+        "metadata": {}
+    }
+}
