@@ -11,12 +11,13 @@ from automation.ai.llm.llm_message import LLMMessage
 
 class AIBrain:
 
-    def __init__(self, llm: LLMAdapter | None = None):
+    def __init__(self, llm: LLMAdapter | None = None, max_history: int = 20,):
         self.session = AISession()
         self.memory = MemoryEngine()
         self.tool_registry = ToolRegistry()
         self.tool_executor = ToolExecutor(self.tool_registry)
         self.llm = llm
+        self.max_history = max_history
 
     @property
     def context(self) -> AIContext:
@@ -79,13 +80,15 @@ class AIBrain:
     def ask(self, message: str):
         if self.llm is None:
             raise RuntimeError("LLM is not configured.")
-        llm_context = self._build_llm_context()
+        llm_context = self._build_llm_context(query=message)
         user_message = AIMessage(role=MessageRole.USER,content=message,)
         self.receive(user_message)
         llm_message = LLMMessage(user=message,context=llm_context,)
         response = self.llm.generate(llm_message)
         if response.success:
-            self.receive(AIMessage(role=MessageRole.ASSISTANT,content=response.content,))
+            self.receive(
+                AIMessage(role=MessageRole.ASSISTANT,content=response.content,)
+            )
         return response
 
     def llm_available(self):
@@ -96,10 +99,38 @@ class AIBrain:
     def set_llm(self, llm: LLMAdapter):
         self.llm = llm
 
-    def _build_llm_context(self):
+    def _build_llm_context(self,query: str = "",memory_limit: int = 5,):
+        messages = self.context.messages
+
+        if self.max_history <= 0:
+            messages = []
+        else:
+            messages = messages[-self.max_history:]
+
+        relevant_memories = self._retrieve_relevant_memories(
+            query=query,
+            limit=memory_limit,
+        )
+
         return {
             "conversation": [
-                {"role": message.role.value,"content": message.content,}
-                for message in self.context.messages
-            ]
+                {
+                    "role": message.role.value,
+                    "content": message.content,
+                }
+                for message in messages
+            ],
+            "memories": relevant_memories,
         }
+
+    def _retrieve_relevant_memories(self,query: str,limit: int = 5,) -> list[dict]:
+        if not query.strip():
+            return []
+
+        try:
+            return self.memory.search_conversation(
+                query=query,
+                limit=limit,
+            )
+        except Exception:
+            return []
