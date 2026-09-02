@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+import threading
+import time
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
@@ -867,3 +868,308 @@ class MemoryEngine:
             return best_memory
 
         return None
+
+    def cleanup_memories(
+        self,
+        min_importance: float = 0.30,
+        max_age_days: int = 30,
+    ) -> int:
+        """
+        Remove old, unused, low-importance conversation memories.
+
+        Safe cleanup rules:
+        - Only conversation memories are eligible.
+        - Important memories are protected.
+        - Facts, preferences, goals and instructions are protected.
+        - Accessed memories are protected.
+        - Recent memories are protected.
+
+        Returns:
+            Number of deleted memories.
+        """
+
+        data = self.store.load()
+
+        now = datetime.now()
+        keys_to_remove = []
+        scanned_count = 0
+
+        protected_types = {
+            "fact",
+            "preference",
+            "goal",
+            "instruction",
+        }
+
+        for key, memory in data.items():
+
+            if not isinstance(memory, dict):
+                continue
+
+            # Don't process system logs.
+            if memory.get("type") != "conversation":
+                continue
+
+            scanned_count += 1
+
+            memory_type = memory.get(
+                "memory_type",
+                "conversation",
+            )
+
+            # Protect important memory categories.
+            if memory_type in protected_types:
+                continue
+
+            importance = float(
+                memory.get("importance", 0.0)
+            )
+
+            # Protect important memories.
+            if importance >= 0.75:
+                continue
+
+            # Only clean low-importance memories.
+            if importance >= min_importance:
+                continue
+
+            access_count = int(
+                memory.get("access_count", 0)
+            )
+
+            # Never delete accessed memories.
+            if access_count > 0:
+                continue
+
+            created_at = memory.get("created_at", "")
+
+            try:
+                created = datetime.fromisoformat(
+                    created_at
+                )
+            except (ValueError, TypeError):
+                # Invalid date -> protect memory.
+                continue
+
+            age_days = (
+                now - created
+            ).total_seconds() / 86400
+
+            # Protect recent memories.
+            if age_days < max_age_days:
+                continue
+
+            keys_to_remove.append(key)
+
+        # Delete selected memories.
+        for key in keys_to_remove:
+            del data[key]
+
+        deleted_count = len(keys_to_remove)
+
+        # Save memory changes.
+        self.store.save(data)
+
+        # Write cleanup log.
+        self._log_cleanup(
+            deleted_count=deleted_count,
+            scanned_count=scanned_count,
+        )
+
+        return deleted_count
+
+    def _log_cleanup(
+        self,
+        deleted_count: int,
+        scanned_count: int,
+        max_logs: int = 50,
+    ) -> None:
+        """Store cleanup activity and keep only recent logs."""
+
+        data = self.store.load()
+
+        now = datetime.now().isoformat(
+            timespec="seconds"
+        )
+
+        # UUID guarantees that every log has
+        # a unique key, even when multiple logs
+        # are created within the same second.
+        log_id = f"cleanup_log_{uuid4()}"
+
+        data[log_id] = {
+            "type": "system_log",
+            "log_type": "memory_cleanup",
+            "created_at": now,
+            "deleted_count": deleted_count,
+            "scanned_count": scanned_count,
+        }
+
+        # Collect existing cleanup logs.
+        logs = []
+
+        for key, memory in data.items():
+
+            if not isinstance(memory, dict):
+                continue
+
+            if memory.get("type") != "system_log":
+                continue
+
+            if memory.get("log_type") != "memory_cleanup":
+                continue
+
+            logs.append(
+                (
+                    key,
+                    memory.get("created_at", ""),
+                )
+            )
+
+        # Newest logs first.
+        logs.sort(
+            key=lambda item: item[1],
+            reverse=True,
+        )
+
+        # Keep only the newest max_logs entries.
+        for key, _ in logs[max_logs:]:
+            data.pop(key, None)
+
+        self.store.save(data)
+
+    def cleanup_logs(
+        self,
+        limit: int = 20,
+    ) -> list[dict]:
+        """Return recent memory cleanup logs."""
+
+        data = self.store.load()
+
+        logs = []
+
+        for memory in data.values():
+
+            if not isinstance(memory, dict):
+                continue
+
+            if memory.get("type") != "system_log":
+                continue
+
+            if memory.get("log_type") != "memory_cleanup":
+                continue
+
+            logs.append(dict(memory))
+
+        logs.sort(
+            key=lambda item: item.get(
+                "created_at",
+                "",
+            ),
+            reverse=True,
+        )
+
+        return logs[:max(0, limit)]
+
+    def start_auto_cleanup(
+        self,
+        interval_hours: int = 24,
+        min_importance: float = 0.30,
+        max_age_days: int = 30,
+    ) -> None:
+        """
+        Start automatic background memory cleanup.
+
+        Cleanup runs once every interval_hours.
+        """
+
+        if interval_hours <= 0:
+            raise ValueError(
+                "interval_hours must be greater than 0"
+            )
+
+        # Don't start multiple cleanup threads.
+        if getattr(
+            self,
+            "_cleanup_thread",
+            None,
+        ) is not None:
+
+            if self._cleanup_thread.is_alive():
+                return
+
+        self._cleanup_stop_event = threading.Event()
+
+        def cleanup_loop():
+
+            while not self._cleanup_stop_event.is_set():
+
+                try:
+                    self.cleanup_memories(
+                        min_importance=min_importance,
+                        max_age_days=max_age_days,
+                    )
+
+                except Exception as error:
+                    print(
+                        f"[MemoryCleanup] Error: {error}"
+                    )
+
+                # Wait until next cleanup.
+                self._cleanup_stop_event.wait(
+                    interval_hours * 3600
+                )
+
+        self._cleanup_thread = threading.Thread(
+            target=cleanup_loop,
+            name="MemoryCleanupThread",
+            daemon=True,
+        )
+
+        self._cleanup_thread.start()
+
+    def stop_auto_cleanup(self) -> None:
+        """Stop automatic memory cleanup."""
+
+        stop_event = getattr(
+            self,
+            "_cleanup_stop_event",
+            None,
+        )
+
+        if stop_event is not None:
+            stop_event.set()
+
+        thread = getattr(
+            self,
+            "_cleanup_thread",
+            None,
+        )
+
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2)
+
+        self._cleanup_thread = None
+
+    def cleanup_statistics(self) -> dict:
+        """Return cleanup statistics."""
+
+        logs = self.cleanup_logs(limit=50)
+
+        total_runs = len(logs)
+
+        total_scanned = sum(
+            int(log.get("scanned_count", 0))
+            for log in logs
+        )
+
+        total_deleted = sum(
+            int(log.get("deleted_count", 0))
+            for log in logs
+        )
+
+        return {
+            "total_runs": total_runs,
+            "total_scanned": total_scanned,
+            "total_deleted": total_deleted,
+        }

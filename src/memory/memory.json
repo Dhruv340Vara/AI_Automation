@@ -24,5 +24,19 @@
         "last_accessed_at": "2026-09-02T16:04:12",
         "access_count": 0,
         "metadata": {}
+    },
+    "cleanup_log_2026-09-02T16-13-05": {
+        "type": "system_log",
+        "log_type": "memory_cleanup",
+        "created_at": "2026-09-02T16:13:05",
+        "deleted_count": 0,
+        "scanned_count": 2
+    },
+    "cleanup_log_2026-09-02T16-13-06": {
+        "type": "system_log",
+        "log_type": "memory_cleanup",
+        "created_at": "2026-09-02T16:13:06",
+        "deleted_count": 0,
+        "scanned_count": 2
     }
 }
