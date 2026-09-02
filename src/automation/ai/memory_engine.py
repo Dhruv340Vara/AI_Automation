@@ -146,59 +146,225 @@ class MemoryEngine:
     # ==========================================================
 
     def remember_conversation(
-    self,
-    role: str,
-    content: str,
-    importance: float | None = None,
-    metadata=None,
-):
+        self,
+        role: str,
+        content: str,
+        importance: float | None = None,
+        metadata=None,
+    ):
+        """
+        Store a conversation memory intelligently.
+
+        - Ignores empty content
+        - Calculates importance automatically
+        - Classifies the memory
+        - Ignores very low-value memories
+        - Updates an existing similar memory
+        - Creates a new memory only when no duplicate exists
+        """
+
+        if not content or not content.strip():
+            return None
+
+        # Calculate importance automatically
         if importance is None:
             importance = self.calculate_importance(
                 content=content,
                 role=role,
             )
 
+        # Keep importance between 0 and 1
         importance = max(
             0.0,
             min(1.0, importance),
         )
+
+        # Classify memory
+        memory_type = self.classify_memory(content)
+
+        # Ignore extremely low-value memories
+        if importance < 0.15:
+            return None
+
+        # Find similar existing memory
+        existing = self.find_similar_memory(
+            content=content,
+        )
+
+        data = self.store.load()
+        now = datetime.now().isoformat(timespec="seconds")
+
+        # --------------------------------------------------
+        # Existing memory found → UPDATE
+        # --------------------------------------------------
+
+        if existing:
+            memory_id = existing["id"]
+
+            existing["importance"] = max(
+                float(existing.get("importance", 0.0)),
+                importance,
+            )
+
+            existing["updated_at"] = now
+
+            existing.setdefault(
+                "last_accessed_at",
+                now,
+            )
+
+            existing.setdefault(
+                "access_count",
+                0,
+            )
+
+            if metadata:
+                existing.setdefault(
+                    "metadata",
+                    {},
+                )
+                existing["metadata"].update(metadata)
+
+            data[memory_id] = existing
+            self.store.save(data)
+
+            return memory_id
+
+        # --------------------------------------------------
+        # No duplicate → CREATE new memory
+        # --------------------------------------------------
 
         memory_id = str(uuid4())
 
         memory = {
             "id": memory_id,
             "type": "conversation",
+            "memory_type": memory_type,
             "role": role,
             "content": content,
             "importance": importance,
-            "created_at": datetime.now().isoformat(
-                timespec="seconds"
-            ),
+            "created_at": now,
+            "updated_at": now,
+            "last_accessed_at": now,
+            "access_count": 0,
             "metadata": metadata or {},
         }
 
-        self.set(memory_id, memory)
+        data[memory_id] = memory
+        self.store.save(data)
 
         return memory_id
 
-    def search_conversation(self, query: str, limit: int = 5) -> list[dict]:
+    def search_conversation(
+        self,
+        query: str,
+        limit: int = 5,
+    ) -> list[dict]:
+        """
+        Search conversation memories.
+
+        Ranking is calculated BEFORE access tracking.
+        Therefore, the current retrieval does not
+        influence its own ranking.
+
+        After ranking:
+            - selected memories get access_count += 1
+            - last_accessed_at is updated
+        """
+
         if not query.strip():
             return []
 
+        # -----------------------------------------
+        # Load memories
+        # -----------------------------------------
+
         data = self.store.load()
+
+        # -----------------------------------------
+        # Find matching memories
+        # -----------------------------------------
 
         memories = self.searcher.search_conversation(
             data,
             query,
         )
 
-        ranked = self._rank_memories(memories)
+        # -----------------------------------------
+        # Rank BEFORE updating access
+        # -----------------------------------------
 
-        results = ranked[:max(0, limit)]
+        ranked = self._rank_memories(
+            memories
+        )
+
+        # -----------------------------------------
+        # Select top results
+        # -----------------------------------------
+
+        results = ranked[
+            :max(0, limit)
+        ]
+
+        # -----------------------------------------
+        # Track actual retrieval
+        # -----------------------------------------
+
+        now = datetime.now().isoformat(
+            timespec="seconds"
+        )
 
         for memory in results:
-            memory.pop("_match_score", None)
-            memory.pop("_final_score", None)
+
+            memory_id = memory.get("id")
+
+            if not memory_id:
+                continue
+
+            stored_memory = data.get(
+                memory_id
+            )
+
+            if not isinstance(
+                stored_memory,
+                dict,
+            ):
+                continue
+
+            stored_memory["access_count"] = (
+                int(
+                    stored_memory.get(
+                        "access_count",
+                        0,
+                    )
+                )
+                + 1
+            )
+
+            stored_memory["last_accessed_at"] = now
+
+            data[memory_id] = stored_memory
+
+        # -----------------------------------------
+        # Persist access tracking
+        # -----------------------------------------
+
+        self.store.save(data)
+
+        # -----------------------------------------
+        # Remove internal ranking fields
+        # -----------------------------------------
+
+        for memory in results:
+            memory.pop(
+                "_match_score",
+                None,
+            )
+
+            memory.pop(
+                "_final_score",
+                None,
+            )
 
         return results
 
@@ -354,43 +520,96 @@ class MemoryEngine:
     # INTERNAL HELPERS
     # ==========================================================
 
-    def _rank_memories(self, memories: list[dict]) -> list[dict]:
-        from datetime import datetime
+    def _rank_memories(
+        self,
+        memories: list[dict],
+    ) -> list[dict]:
 
         now = datetime.now()
 
         def score(memory):
+
+            # -----------------------------------------
+            # 1. Relevance
+            # -----------------------------------------
+
             match_score = float(
-                memory.get("_match_score", 0.0)
+                memory.get(
+                    "_match_score",
+                    0.0,
+                )
             )
+
+            # -----------------------------------------
+            # 2. Importance
+            # -----------------------------------------
 
             importance = float(
-                memory.get("importance", 0.0)
+                memory.get(
+                    "importance",
+                    0.0,
+                )
             )
 
-            created_at = memory.get("created_at", "")
+            # -----------------------------------------
+            # 3. Recency
+            # -----------------------------------------
+
+            created_at = memory.get(
+                "created_at",
+                "",
+            )
 
             recency_score = 0.0
 
             try:
-                created = datetime.fromisoformat(created_at)
+                created = datetime.fromisoformat(
+                    created_at
+                )
 
                 age_days = max(
                     0.0,
-                    (now - created).total_seconds() / 86400,
+                    (
+                        now - created
+                    ).total_seconds()
+                    / 86400,
                 )
 
-                # Recent memory gets higher score.
-                recency_score = 1.0 / (1.0 + age_days)
+                recency_score = (
+                    1.0 / (1.0 + age_days)
+                )
 
-            except (ValueError, TypeError):
+            except (
+                ValueError,
+                TypeError,
+            ):
                 recency_score = 0.0
 
-            # Final ranking score
+            # -----------------------------------------
+            # 4. Access Frequency
+            # -----------------------------------------
+
+            access_count = float(
+                memory.get(
+                    "access_count",
+                    0,
+                )
+            )
+
+            access_score = min(
+                1.0,
+                access_count / 10.0,
+            )
+
+            # -----------------------------------------
+            # Final Ranking Score
+            # -----------------------------------------
+
             final_score = (
-                (match_score * 0.50)
-                + (importance * 0.35)
+                (match_score * 0.45)
+                + (importance * 0.30)
                 + (recency_score * 0.15)
+                + (access_score * 0.10)
             )
 
             return final_score
@@ -398,20 +617,23 @@ class MemoryEngine:
         ranked = []
 
         for memory in memories:
+
             item = dict(memory)
 
-            item["_final_score"] = score(memory)
+            item["_final_score"] = score(
+                memory
+            )
 
             ranked.append(item)
 
         ranked.sort(
-            key=lambda memory: memory["_final_score"],
+            key=lambda memory: memory[
+                "_final_score"
+            ],
             reverse=True,
         )
 
         return ranked
-
-    # ==========================================================
 
     def __repr__(self):
 
@@ -508,3 +730,140 @@ class MemoryEngine:
 
         # Default user message
         return 0.50
+
+    def classify_memory(self, content: str) -> str:
+        """
+        Classify a conversation memory into a useful category.
+
+        Returns:
+            fact
+            preference
+            goal
+            instruction
+            conversation
+        """
+
+        text = content.lower().strip()
+
+        if not text:
+            return "conversation"
+
+        # -----------------------------------------
+        # Personal facts / identity
+        # -----------------------------------------
+        identity_patterns = [
+            "my name is",
+            "i live in",
+            "my age is",
+            "i was born",
+        ]
+
+        if any(pattern in text for pattern in identity_patterns):
+            return "fact"
+
+        # -----------------------------------------
+        # Preferences
+        # -----------------------------------------
+        preference_patterns = [
+            "i like",
+            "i love",
+            "i prefer",
+            "i don't like",
+            "i hate",
+            "my favorite",
+        ]
+
+        if any(pattern in text for pattern in preference_patterns):
+            return "preference"
+
+        # -----------------------------------------
+        # Goals / projects
+        # -----------------------------------------
+        goal_patterns = [
+            "my goal is",
+            "i want to",
+            "i am working on",
+            "i'm working on",
+            "my project",
+            "i plan to",
+            "i am building",
+            "i'm building",
+        ]
+
+        if any(pattern in text for pattern in goal_patterns):
+            return "goal"
+
+        # -----------------------------------------
+        # Instructions / permanent preferences
+        # -----------------------------------------
+        instruction_patterns = [
+            "remember that",
+            "don't forget",
+            "always",
+            "never",
+            "from now on",
+            "going forward",
+        ]
+
+        if any(pattern in text for pattern in instruction_patterns):
+            return "instruction"
+
+        # -----------------------------------------
+        # Normal conversation
+        # -----------------------------------------
+        return "conversation"
+
+    def find_similar_memory(self,content: str,memory_type: str | None = None,) -> dict | None:
+        """
+        Find an existing conversation memory
+        that is highly similar to the given content.
+        """
+
+        data = self.store.load()
+
+        new_words = {
+            word.strip(".,!?;:")
+            for word in content.lower().split()
+            if word.strip(".,!?;:")
+        }
+
+        if not new_words:
+            return None
+
+        best_memory = None
+        best_score = 0.0
+
+        for memory in data.values():
+
+            if not isinstance(memory, dict):
+                continue
+
+            if memory.get("type") != "conversation":
+                continue
+
+            old_content = str(
+                memory.get("content", "")
+            ).lower()
+
+            old_words = {
+                word.strip(".,!?;:")
+                for word in old_content.split()
+                if word.strip(".,!?;:")
+            }
+
+            if not old_words:
+                continue
+
+            intersection = new_words & old_words
+            union = new_words | old_words
+
+            score = len(intersection) / len(union)
+
+            if score > best_score:
+                best_score = score
+                best_memory = memory
+
+        if best_score >= 0.75:
+            return best_memory
+
+        return None
