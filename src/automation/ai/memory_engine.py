@@ -252,7 +252,31 @@ class MemoryEngine:
         }
 
         data[memory_id] = memory
+        # Save new memory first.
+        data[memory_id] = memory
         self.store.save(data)
+
+        # Find memories that conflict with this new memory.
+        conflicts = self.find_conflicting_memories(
+            content=content,
+            memory_type=memory_type,
+        )
+
+        # Mark conflicting memories as superseded.
+        for conflict in conflicts:
+
+            old_memory_id = conflict.get("id")
+
+            if not old_memory_id:
+                continue
+
+            if old_memory_id == memory_id:
+                continue
+
+            self.supersede_memory(
+                old_memory_id=old_memory_id,
+                new_memory_id=memory_id,
+            )
 
         return memory_id
 
@@ -261,55 +285,57 @@ class MemoryEngine:
         query: str,
         limit: int = 5,
     ) -> list[dict]:
-        """
-        Search conversation memories.
-
-        Ranking is calculated BEFORE access tracking.
-        Therefore, the current retrieval does not
-        influence its own ranking.
-
-        After ranking:
-            - selected memories get access_count += 1
-            - last_accessed_at is updated
-        """
+        """Search only active conversation memories."""
 
         if not query.strip():
             return []
 
-        # -----------------------------------------
-        # Load memories
-        # -----------------------------------------
-
         data = self.store.load()
 
-        # -----------------------------------------
-        # Find matching memories
-        # -----------------------------------------
-
+        # Search conversation memories.
         memories = self.searcher.search_conversation(
             data,
             query,
         )
 
-        # -----------------------------------------
-        # Rank BEFORE updating access
-        # -----------------------------------------
+        # -------------------------------------------------
+        # Filter superseded memories.
+        # -------------------------------------------------
+
+        active_memories = []
+
+        for memory in memories:
+
+            if not isinstance(memory, dict):
+                continue
+
+            # Default old memories to active for
+            # backward compatibility.
+            status = memory.get(
+                "status",
+                "active",
+            )
+
+            if status != "active":
+                continue
+
+            active_memories.append(memory)
+
+        # -------------------------------------------------
+        # Rank only active memories.
+        # -------------------------------------------------
 
         ranked = self._rank_memories(
-            memories
+            active_memories
         )
-
-        # -----------------------------------------
-        # Select top results
-        # -----------------------------------------
 
         results = ranked[
             :max(0, limit)
         ]
 
-        # -----------------------------------------
-        # Track actual retrieval
-        # -----------------------------------------
+        # -------------------------------------------------
+        # Access tracking.
+        # -------------------------------------------------
 
         now = datetime.now().isoformat(
             timespec="seconds"
@@ -332,31 +358,22 @@ class MemoryEngine:
             ):
                 continue
 
-            stored_memory["access_count"] = (
-                int(
-                    stored_memory.get(
-                        "access_count",
-                        0,
-                    )
+            stored_memory["access_count"] = int(
+                stored_memory.get(
+                    "access_count",
+                    0,
                 )
-                + 1
-            )
+            ) + 1
 
             stored_memory["last_accessed_at"] = now
 
             data[memory_id] = stored_memory
 
-        # -----------------------------------------
-        # Persist access tracking
-        # -----------------------------------------
-
         self.store.save(data)
 
-        # -----------------------------------------
-        # Remove internal ranking fields
-        # -----------------------------------------
-
+        # Remove internal ranking fields.
         for memory in results:
+
             memory.pop(
                 "_match_score",
                 None,
@@ -1173,3 +1190,148 @@ class MemoryEngine:
             "total_scanned": total_scanned,
             "total_deleted": total_deleted,
         }
+
+    def find_conflicting_memories(
+        self,
+        content: str,
+        memory_type: str | None = None,
+    ) -> list[dict]:
+        """
+        Find active memories that may conflict with new content.
+        """
+
+        if not content or not content.strip():
+            return []
+
+        data = self.store.load()
+
+        new_text = content.lower().strip()
+
+        if memory_type is None:
+            memory_type = self.classify_memory(content)
+
+        # Only these memory categories need conflict detection.
+        conflict_types = {
+            "fact",
+            "preference",
+            "goal",
+            "instruction",
+        }
+
+        if memory_type not in conflict_types:
+            return []
+
+        conflicts = []
+
+        for memory in data.values():
+
+            if not isinstance(memory, dict):
+                continue
+
+            if memory.get("type") != "conversation":
+                continue
+
+            # Ignore already superseded memories.
+            if memory.get("status", "active") != "active":
+                continue
+
+            existing_type = memory.get(
+                "memory_type",
+                "conversation",
+            )
+
+            # Conflict is only checked within
+            # the same memory category.
+            if existing_type != memory_type:
+                continue
+
+            existing_content = str(
+                memory.get("content", "")
+            ).lower().strip()
+
+            if not existing_content:
+                continue
+
+            # Don't compare a memory with itself.
+            if existing_content == new_text:
+                continue
+
+            # Basic conflict detection.
+            #
+            # We currently identify potential conflicts
+            # by category and related keywords.
+            new_words = {
+                word.strip(".,!?;:")
+                for word in new_text.split()
+                if word.strip(".,!?;:")
+            }
+
+            old_words = {
+                word.strip(".,!?;:")
+                for word in existing_content.split()
+                if word.strip(".,!?;:")
+            }
+
+            if not new_words or not old_words:
+                continue
+
+            overlap = new_words & old_words
+
+            similarity = (
+                len(overlap)
+                / len(new_words | old_words)
+            )
+
+            # A reasonably related memory is a
+            # potential conflict candidate.
+            if similarity >= 0.20:
+                result = dict(memory)
+                result["_conflict_score"] = similarity
+                conflicts.append(result)
+
+        conflicts.sort(
+            key=lambda memory: memory.get(
+                "_conflict_score",
+                0.0,
+            ),
+            reverse=True,
+        )
+
+        return conflicts
+
+    def supersede_memory(
+        self,
+        old_memory_id: str,
+        new_memory_id: str,
+    ) -> bool:
+        """
+        Mark an existing memory as superseded by a newer memory.
+
+        The old memory is preserved for history.
+        """
+
+        data = self.store.load()
+
+        old_memory = data.get(old_memory_id)
+
+        if not isinstance(old_memory, dict):
+            return False
+
+        # Don't supersede an already superseded memory.
+        if old_memory.get("status") == "superseded":
+            return False
+
+        now = datetime.now().isoformat(
+            timespec="seconds"
+        )
+
+        old_memory["status"] = "superseded"
+        old_memory["superseded_by"] = new_memory_id
+        old_memory["superseded_at"] = now
+        old_memory["updated_at"] = now
+
+        data[old_memory_id] = old_memory
+
+        self.store.save(data)
+
+        return True
