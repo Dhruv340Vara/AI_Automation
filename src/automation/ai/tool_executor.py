@@ -3,7 +3,9 @@ from __future__ import annotations
 from automation.ai.tool_registry import (
     ToolRegistry,
 )
-
+from automation.ai.tool_argument_validator import (
+    ToolArgumentValidator,
+)
 from automation.ai.tool_result import (
     ToolResult,
 )
@@ -42,29 +44,42 @@ class ToolExecutor:
         if tool is None:
 
             return ToolResult(
-
                 success=False,
-
                 message=(
                     f"Tool '{tool_name}' "
                     "not found."
                 ),
-
             )
 
         if not tool.is_enabled():
 
             return ToolResult(
-
                 success=False,
-
                 message=(
                     f"Tool '{tool_name}' "
                     "is disabled."
                 ),
-
             )
 
+        # Validate tool arguments
+        schema = tool.schema()
+
+        valid, error = ToolArgumentValidator.validate(
+            kwargs,
+            schema,
+        )
+
+        if not valid:
+
+            return ToolResult(
+                success=False,
+                message=(
+                    f"Invalid arguments for "
+                    f"tool '{tool_name}': {error}"
+                ),
+            )
+
+        # Execute only after validation
         result = tool.execute(
             **kwargs
         )
@@ -78,16 +93,10 @@ class ToolExecutor:
             return result
 
         return ToolResult(
-
             success=True,
-
             data=result,
-
             message="Completed",
-
         )
-
-    # -------------------------------- #
 
     def execution_count(
         self,

@@ -1,3 +1,94 @@
 {
-    "user": "Dhruv"
+    "user": "Dhruv",
+    "1be16075-787a-4482-9ad6-053652603a45": {
+        "id": "1be16075-787a-4482-9ad6-053652603a45",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "user",
+        "content": "What is my current directory?",
+        "importance": 0.5,
+        "created_at": "2026-09-02T18:49:20",
+        "updated_at": "2026-09-02T18:50:41",
+        "last_accessed_at": "2026-09-02T21:08:53",
+        "access_count": 8,
+        "metadata": {}
+    },
+    "d6e4d90d-e18f-4708-816b-d1931a690f70": {
+        "id": "d6e4d90d-e18f-4708-816b-d1931a690f70",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "{\"type\":\"tool_call\",\"tool\":\"Shell\",\"arguments\":{\"command\":\"pwd\"}}",
+        "importance": 0.25,
+        "created_at": "2026-09-02T18:49:20",
+        "updated_at": "2026-09-02T18:49:20",
+        "last_accessed_at": "2026-09-02T18:49:20",
+        "access_count": 0,
+        "metadata": {}
+    },
+    "148414d7-fe54-4686-be7f-593163b132e2": {
+        "id": "148414d7-fe54-4686-be7f-593163b132e2",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "{\"type\":\"final_answer\",\"content\":\"Hello!\"}",
+        "importance": 0.25,
+        "created_at": "2026-09-02T18:49:20",
+        "updated_at": "2026-09-02T18:49:20",
+        "last_accessed_at": "2026-09-02T18:49:20",
+        "access_count": 0,
+        "metadata": {}
+    },
+    "9f6fe3ca-a601-43ed-b1a2-7bc2f048dfbd": {
+        "id": "9f6fe3ca-a601-43ed-b1a2-7bc2f048dfbd",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "{\n\"type\": \"tool_call\",\n\"tool\": \"os_query\",\n\"arguments\": {}\n}",
+        "importance": 0.25,
+        "created_at": "2026-09-02T18:52:26",
+        "updated_at": "2026-09-02T18:52:26",
+        "last_accessed_at": "2026-09-02T18:52:26",
+        "access_count": 0,
+        "metadata": {}
+    },
+    "bbb6e844-240d-453b-983c-54d4af86917d": {
+        "id": "bbb6e844-240d-453b-983c-54d4af86917d",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "user",
+        "content": "Show me my current working directory",
+        "importance": 0.5,
+        "created_at": "2026-09-02T20:24:15",
+        "updated_at": "2026-09-02T21:08:53",
+        "last_accessed_at": "2026-09-02T21:08:53",
+        "access_count": 6,
+        "metadata": {}
+    },
+    "edd1f662-00e1-48b9-8a85-5df7bb050aac": {
+        "id": "edd1f662-00e1-48b9-8a85-5df7bb050aac",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "{\n\"type\": \"tool_call\",\n\"tool\": \"shell\",\n\"arguments\": {\n\"command\": \"pwd\"\n}\n}",
+        "importance": 0.25,
+        "created_at": "2026-09-02T20:26:08",
+        "updated_at": "2026-09-02T21:00:14",
+        "last_accessed_at": "2026-09-02T20:26:08",
+        "access_count": 0,
+        "metadata": {}
+    },
+    "ce495f1d-c4cc-4b70-91c9-ba0842d7f395": {
+        "id": "ce495f1d-c4cc-4b70-91c9-ba0842d7f395",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "/media/dipak/entertainment/AI_Automation",
+        "importance": 0.25,
+        "created_at": "2026-09-02T21:09:53",
+        "updated_at": "2026-09-02T21:09:53",
+        "last_accessed_at": "2026-09-02T21:09:53",
+        "access_count": 0,
+        "metadata": {}
+    }
 }

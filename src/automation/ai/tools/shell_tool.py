@@ -20,6 +20,28 @@ class ShellTool(Tool):
 
     # ---------------------------- #
 
+    def argument_schema(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "Shell command to execute.",
+                },
+                "cwd": {
+                    "type": "string",
+                    "description": "Optional working directory.",
+                },
+                "timeout": {
+                    "type": "integer",
+                    "description": "Maximum execution time in seconds.",
+                },
+            },
+            "required": [
+                "command",
+            ],
+        }
+
     def execute(
         self,
         command: str,

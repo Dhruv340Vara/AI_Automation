@@ -71,3 +71,20 @@ class Tool(ABC):
             f"{self.name} "
             f"({status})>"
         )
+
+    def schema(self) -> dict:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "parameters": self.argument_schema(),
+        }
+
+    def argument_schema(self) -> dict:
+        """
+        Returns the argument schema required by this tool.
+        """
+        return {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }

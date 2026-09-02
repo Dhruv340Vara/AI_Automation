@@ -108,3 +108,10 @@ class ToolRegistry:
             f"<ToolRegistry "
             f"tools={self.count()}>"
         )
+
+    def schemas(self):
+        return [
+            tool.schema()
+            for tool in self._tools.values()
+            if tool.is_enabled()
+        ]

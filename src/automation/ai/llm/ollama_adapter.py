@@ -1,5 +1,4 @@
 from __future__ import annotations
-from email import message
 
 import requests
 
@@ -112,10 +111,103 @@ class OllamaAdapter(
     def _build_prompt(self,message: LLMMessage,) -> str:
 
         parts = []
+        # Available tools
+        tools = message.context.get(
+            "tools",
+            [],
+        )
 
+        if tools:
+            parts.append("Available Tools:")
+
+            for tool in tools:
+                name = tool.get("name", "")
+                description = tool.get("description", "")
+
+                if not name:
+                    continue
+
+                parts.append(
+                    f"- {name}: {description}"
+                )
+
+        # Executed tool call
+        tool_call = message.context.get(
+            "tool_call"
+        )
+
+        if tool_call:
+            parts.append("Executed Tool Call:")
+
+            parts.append(
+                f"Tool: {tool_call.get('tool', '')}"
+            )
+
+            parts.append(
+                f"Arguments: {tool_call.get('arguments', {})}"
+            )
+
+
+        # Tool result
+        tool_result = message.context.get(
+            "tool_result"
+        )
+
+        if tool_result:
+            parts.append("Tool Result:")
+
+            parts.append(
+                f"Success: {tool_result.get('success')}"
+            )
+
+            parts.append(
+                f"Data: {tool_result.get('data')}"
+            )
+
+            parts.append(
+                f"Message: {tool_result.get('message', '')}"
+            )
+            
         # System instruction
         if message.system:
             parts.append(message.system)
+
+        # Tool call
+        tool_call = message.context.get(
+            "tool_call"
+        )
+
+        if tool_call:
+            parts.append("Executed Tool Call:")
+
+            parts.append(
+                f"Tool: {tool_call.get('tool', '')}"
+            )
+
+            parts.append(
+                f"Arguments: {tool_call.get('arguments', {})}"
+            )
+
+
+        # Tool result
+        tool_result = message.context.get(
+            "tool_result"
+        )
+
+        if tool_result:
+            parts.append("Tool Result:")
+
+            parts.append(
+                f"Success: {tool_result.get('success')}"
+            )
+
+            parts.append(
+                f"Data: {tool_result.get('data')}"
+            )
+
+            parts.append(
+                f"Message: {tool_result.get('message', '')}"
+            )
 
         # Relevant memories
         memories = message.context.get(
