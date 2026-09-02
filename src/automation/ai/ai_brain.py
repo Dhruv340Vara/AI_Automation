@@ -92,10 +92,15 @@ class AIBrain:
         self.receive(user_message)
 
         # 3. Automatically save user message to long-term memory
+        user_importance = self.memory.calculate_importance(
+            content=message,
+            role="user",
+        )
+
         self.memory.remember_conversation(
             role="user",
             content=message,
-            importance=0.5,
+            importance=user_importance,
         )
 
         # 4. Send request to LLM
@@ -117,10 +122,15 @@ class AIBrain:
             self.receive(assistant_message)
 
             # Long-term memory
+            assistant_importance = self.memory.calculate_importance(
+                content=response.content,
+                role="assistant",
+            )
+
             self.memory.remember_conversation(
                 role="assistant",
                 content=response.content,
-                importance=0.3,
+                importance=assistant_importance,
             )
 
         return response
@@ -158,13 +168,17 @@ class AIBrain:
         }
 
     def _retrieve_relevant_memories(self,query: str,limit: int = 5,) -> list[dict]:
+
         if not query.strip():
             return []
 
         try:
-            return self.memory.search_conversation(
+            memories = self.memory.search_conversation(
                 query=query,
                 limit=limit,
             )
+
+            return memories
+
         except Exception:
             return []

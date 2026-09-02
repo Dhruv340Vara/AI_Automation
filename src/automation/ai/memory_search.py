@@ -76,24 +76,13 @@ class MemorySearch:
 
     # -------------------------------- #
 
-    def search_conversation(
-        self,
-        data: dict[str, Any],
-        query: str,
-    ) -> list[dict[str, Any]]:
-
+    def search_conversation(self, data, query):
         query = query.lower().strip()
 
         if not query:
             return []
 
-        stop_words = set(
-            stopwords.words("english")
-        )
-
-        # -------------------------------- #
-        # Extract meaningful query words
-        # -------------------------------- #
+        stop_words = set(stopwords.words("english"))
 
         query_words = {
             word.strip(".,!?;:")
@@ -107,21 +96,14 @@ class MemorySearch:
 
         results = []
 
-        # -------------------------------- #
-        # Search conversation memories
-        # -------------------------------- #
-
         for value in data.values():
-
             if not isinstance(value, dict):
                 continue
 
             if value.get("type") != "conversation":
                 continue
 
-            content = str(
-                value.get("content", "")
-            ).lower()
+            content = str(value.get("content", "")).lower()
 
             content_words = {
                 word.strip(".,!?;:")
@@ -129,45 +111,18 @@ class MemorySearch:
                 if word.strip(".,!?;:")
             }
 
-            matched_words = (
-                query_words & content_words
+            matched_words = query_words & content_words
+
+            if not matched_words:
+                continue
+
+            result = dict(value)
+
+            # Preserve match score for MemoryEngine
+            result["_match_score"] = (
+                len(matched_words) / len(query_words)
             )
 
-            if matched_words:
-
-                result = dict(value)
-
-                result["_match_score"] = len(
-                    matched_words
-                )
-
-                results.append(result)
-
-        # -------------------------------- #
-        # Rank results
-        # -------------------------------- #
-
-        results.sort(
-            key=lambda memory: (
-                memory.get("_match_score", 0),
-                memory.get("importance", 0),
-            ),
-            reverse=True,
-        )
-
-        # -------------------------------- #
-        # Remove internal score
-        # -------------------------------- #
-
-        for memory in results:
-            memory.pop(
-                "_match_score",
-                None,
-            )
+            results.append(result)
 
         return results
-
-    # -------------------------------- #
-
-    def __repr__(self):
-        return "<MemorySearch>"

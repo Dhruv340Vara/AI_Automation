@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
-
 from automation.ai.memory_store import (
     MemoryStore,
 )
@@ -147,20 +146,22 @@ class MemoryEngine:
     # ==========================================================
 
     def remember_conversation(
-        self,
-        role: str,
-        content: str,
-        importance: float = 0.5,
-        metadata: dict[str, Any] | None = None,
-    ) -> str:
-        """
-        Store a conversation message in long-term memory.
+    self,
+    role: str,
+    content: str,
+    importance: float | None = None,
+    metadata=None,
+):
+        if importance is None:
+            importance = self.calculate_importance(
+                content=content,
+                role=role,
+            )
 
-        Returns:
-            Memory ID
-        """
-
-        data = self.store.load()
+        importance = max(
+            0.0,
+            min(1.0, importance),
+        )
 
         memory_id = str(uuid4())
 
@@ -169,51 +170,37 @@ class MemoryEngine:
             "type": "conversation",
             "role": role,
             "content": content,
-            "importance": max(
-                0.0,
-                min(1.0, importance),
-            ),
+            "importance": importance,
             "created_at": datetime.now().isoformat(
                 timespec="seconds"
             ),
             "metadata": metadata or {},
         }
 
-        data[memory_id] = memory
-
-        self.store.save(
-            data
-        )
+        self.set(memory_id, memory)
 
         return memory_id
 
-    # -------------------------------- #
-
-    def search_conversation(
-        self,
-        query: str,
-        limit: int = 5,
-    ) -> list[dict[str, Any]]:
-        """
-        Search conversation memories.
-
-        Returns the most relevant matching memories.
-        """
+    def search_conversation(self, query: str, limit: int = 5) -> list[dict]:
+        if not query.strip():
+            return []
 
         data = self.store.load()
 
-        results = self.searcher.search_conversation(
+        memories = self.searcher.search_conversation(
             data,
             query,
         )
 
-        results = self._rank_memories(
-            results
-        )
+        ranked = self._rank_memories(memories)
 
-        return results[:max(0, limit)]
+        results = ranked[:max(0, limit)]
 
-    # -------------------------------- #
+        for memory in results:
+            memory.pop("_match_score", None)
+            memory.pop("_final_score", None)
+
+        return results
 
     def recent_memories(
         self,
@@ -367,34 +354,157 @@ class MemoryEngine:
     # INTERNAL HELPERS
     # ==========================================================
 
-    def _rank_memories(
-        self,
-        memories: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        """
-        Rank memories by importance and recency.
-        """
+    def _rank_memories(self, memories: list[dict]) -> list[dict]:
+        from datetime import datetime
 
-        return sorted(
+        now = datetime.now()
 
-            memories,
+        def score(memory):
+            match_score = float(
+                memory.get("_match_score", 0.0)
+            )
 
-            key=lambda item: (
-                item.get(
-                    "importance",
+            importance = float(
+                memory.get("importance", 0.0)
+            )
+
+            created_at = memory.get("created_at", "")
+
+            recency_score = 0.0
+
+            try:
+                created = datetime.fromisoformat(created_at)
+
+                age_days = max(
                     0.0,
-                ),
-                item.get(
-                    "created_at",
-                    "",
-                ),
-            ),
+                    (now - created).total_seconds() / 86400,
+                )
 
+                # Recent memory gets higher score.
+                recency_score = 1.0 / (1.0 + age_days)
+
+            except (ValueError, TypeError):
+                recency_score = 0.0
+
+            # Final ranking score
+            final_score = (
+                (match_score * 0.50)
+                + (importance * 0.35)
+                + (recency_score * 0.15)
+            )
+
+            return final_score
+
+        ranked = []
+
+        for memory in memories:
+            item = dict(memory)
+
+            item["_final_score"] = score(memory)
+
+            ranked.append(item)
+
+        ranked.sort(
+            key=lambda memory: memory["_final_score"],
             reverse=True,
         )
+
+        return ranked
 
     # ==========================================================
 
     def __repr__(self):
 
         return "<MemoryEngine>"
+
+    def calculate_importance(self, content: str, role: str = "user") -> float:
+        """
+        Calculate how important a conversation message is for long-term memory.
+        Returns a value between 0.0 and 1.0.
+        """
+
+        text = content.lower().strip()
+
+        if not text:
+            return 0.0
+
+        # Very short conversational messages
+        low_value_phrases = {
+            "ok",
+            "okay",
+            "thanks",
+            "thank you",
+            "hi",
+            "hello",
+            "hey",
+            "bye",
+            "goodbye",
+            "yes",
+            "no",
+            "sure",
+        }
+
+        if text in low_value_phrases:
+            return 0.05
+
+        # Strong personal facts / identity
+        identity_patterns = [
+            "my name is",
+            "i am ",
+            "i'm ",
+            "i live in",
+            "my age is",
+            "i was born",
+        ]
+
+        if any(pattern in text for pattern in identity_patterns):
+            return 0.95
+
+        # Preferences
+        preference_patterns = [
+            "i like",
+            "i love",
+            "i prefer",
+            "i don't like",
+            "i hate",
+            "my favorite",
+            "i prefer",
+        ]
+
+        if any(pattern in text for pattern in preference_patterns):
+            return 0.85
+
+        # Long-term goals / projects
+        goal_patterns = [
+            "my goal is",
+            "i want to",
+            "i am working on",
+            "i'm working on",
+            "my project",
+            "i plan to",
+            "i am building",
+            "i'm building",
+        ]
+
+        if any(pattern in text for pattern in goal_patterns):
+            return 0.80
+
+        # Important instructions / decisions
+        instruction_patterns = [
+            "remember that",
+            "don't forget",
+            "always",
+            "never",
+            "from now on",
+            "going forward",
+        ]
+
+        if any(pattern in text for pattern in instruction_patterns):
+            return 0.90
+
+        # Assistant messages are generally less important than user facts
+        if role == "assistant":
+            return 0.25
+
+        # Default user message
+        return 0.50
