@@ -38,5 +38,83 @@
         "created_at": "2026-09-02T16:13:06",
         "deleted_count": 0,
         "scanned_count": 2
+    },
+    "e247af28-9b9a-4d50-86b8-6d06cd446f47": {
+        "id": "e247af28-9b9a-4d50-86b8-6d06cd446f47",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "user",
+        "content": "show my current working folder",
+        "importance": 0.5,
+        "created_at": "2026-09-03T11:16:05",
+        "updated_at": "2026-09-03T11:19:30",
+        "last_accessed_at": "2026-09-03T11:19:30",
+        "access_count": 2,
+        "metadata": {}
+    },
+    "f5d1b2d3-05b0-490b-a085-e5633970ed78": {
+        "id": "f5d1b2d3-05b0-490b-a085-e5633970ed78",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "{\n    \"type\": \"final_answer\",\n    \"content\": \"pwd\"\n}",
+        "importance": 0.25,
+        "created_at": "2026-09-03T11:17:52",
+        "updated_at": "2026-09-03T11:17:52",
+        "last_accessed_at": "2026-09-03T11:17:52",
+        "access_count": 0,
+        "metadata": {}
+    },
+    "2fd10047-e7e8-4a42-b658-612259f826a8": {
+        "id": "2fd10047-e7e8-4a42-b658-612259f826a8",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "I was unable to execute the request as the Shell tool requires a command argument. Please provide the appropriate command to check your current working folder.",
+        "importance": 0.25,
+        "created_at": "2026-09-03T11:19:08",
+        "updated_at": "2026-09-03T11:19:08",
+        "last_accessed_at": "2026-09-03T11:19:30",
+        "access_count": 1,
+        "metadata": {}
+    },
+    "e67e7017-b3d2-44c8-bcc3-a4c827002789": {
+        "id": "e67e7017-b3d2-44c8-bcc3-a4c827002789",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "/media/dipak/entertainment/AI_Automation/src",
+        "importance": 0.25,
+        "created_at": "2026-09-03T11:20:48",
+        "updated_at": "2026-09-03T11:20:48",
+        "last_accessed_at": "2026-09-03T11:20:48",
+        "access_count": 0,
+        "metadata": {}
+    },
+    "5997b4d6-05e7-4ccd-844f-f4382050ec72": {
+        "id": "5997b4d6-05e7-4ccd-844f-f4382050ec72",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "user",
+        "content": "what is my name",
+        "importance": 0.5,
+        "created_at": "2026-09-03T11:25:11",
+        "updated_at": "2026-09-03T11:25:11",
+        "last_accessed_at": "2026-09-03T11:25:11",
+        "access_count": 0,
+        "metadata": {}
+    },
+    "35aa1350-2557-4a40-b36c-c92465e83239": {
+        "id": "35aa1350-2557-4a40-b36c-c92465e83239",
+        "type": "conversation",
+        "memory_type": "conversation",
+        "role": "assistant",
+        "content": "{\n    \"type\": \"final_answer\",\n    \"content\": \"I don't have access to your personal information, so I cannot determine your name.\"\n}",
+        "importance": 0.25,
+        "created_at": "2026-09-03T11:25:26",
+        "updated_at": "2026-09-03T11:25:26",
+        "last_accessed_at": "2026-09-03T11:25:26",
+        "access_count": 0,
+        "metadata": {}
     }
 }
